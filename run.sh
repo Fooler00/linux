@@ -1,0 +1,1 @@
+g++ -std=c++17 backend.cpp -o backup -pthread ./backup

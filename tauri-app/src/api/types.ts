@@ -12,6 +12,8 @@ export type ArchiveTypeValue = ArchiveType | (string & {});
 
 export type EncryptAlgoValue = EncryptAlgo | (string & {});
 
+// 页面在逐步收口过程中先保留 string 兼容，避免旧表单值在过渡阶段把构建卡死。
+
 export interface Task {
   id: number;
   userId: number;

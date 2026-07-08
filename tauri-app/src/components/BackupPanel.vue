@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { startBackup } from "../api/backup";
 import { showMessage } from "../composables/useMessage";
+import PathInput from "./PathInput.vue";
+import SubmitButton from "./SubmitButton.vue";
 import { splitLines } from "../utils/format";
+import { ARCHIVE_TYPE_OPTIONS, ENCRYPT_ALGO_OPTIONS } from "../utils/options";
+import { validateBackupForm } from "../utils/validation";
 
 const emit = defineEmits<{ submitted: [] }>();
+// 防止同一份表单被连续点击，重复创建多个真实备份任务。
+const submitting = ref(false);
 
 const form = reactive({
   source: "",
@@ -30,22 +36,20 @@ const form = reactive({
   group: "",
 });
 
-const archiveTypes = ["none", "zip", "tar", "tar.gz"];
-const encryptAlgos = [
-  "aes-256-cbc",
-  "aes-128-cbc",
-  "camellia-256-cbc",
-  "camellia-128-cbc",
-  "des-ede3-cbc",
-  "chacha20",
-];
-
 async function submit() {
-  if (!form.source.trim() || !form.destination.trim()) {
-    showMessage("请输入源目录和备份目标目录", "error");
+  if (submitting.value) {
     return;
   }
 
+  const validation = validateBackupForm(form);
+  if (!validation.valid) {
+    showMessage(validation.message ?? "请检查备份表单", "error");
+    return;
+  }
+
+  submitting.value = true;
+
+  // 高级筛选仍按后端既有字段组织，只把非空值拼回 payload，避免改动协议。
   const filter: Record<string, unknown> = {
     preserveMetadata: form.preserveMetadata,
     includeSpecialFiles: form.includeSpecialFiles,
@@ -85,6 +89,8 @@ async function submit() {
     emit("submitted");
   } catch (error) {
     showMessage(error instanceof Error ? error.message : "备份失败", "error");
+  } finally {
+    submitting.value = false;
   }
 }
 </script>
@@ -93,25 +99,43 @@ async function submit() {
   <section class="panel">
     <h2>手动备份</h2>
     <div class="form-grid">
-      <label class="field span-2">
-        <span>源目录</span>
-        <input v-model="form.source" type="text" placeholder="/path/to/source" />
-      </label>
-      <label class="field span-2">
-        <span>备份目标目录</span>
-        <input v-model="form.destination" type="text" placeholder="/path/to/backup" />
-      </label>
+      <PathInput
+        v-model="form.source"
+        class="span-2"
+        label="源目录"
+        placeholder="/path/to/source"
+        :disabled="submitting"
+      />
+      <PathInput
+        v-model="form.destination"
+        class="span-2"
+        label="备份目标目录"
+        placeholder="/path/to/backup"
+        :disabled="submitting"
+      />
 
       <label class="field">
         <span>归档类型</span>
         <select v-model="form.archiveType">
-          <option v-for="type in archiveTypes" :key="type" :value="type">{{ type }}</option>
+          <option
+            v-for="option in ARCHIVE_TYPE_OPTIONS"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
         </select>
       </label>
       <label class="field">
         <span>加密算法</span>
         <select v-model="form.encryptAlgo">
-          <option v-for="algo in encryptAlgos" :key="algo" :value="algo">{{ algo }}</option>
+          <option
+            v-for="option in ENCRYPT_ALGO_OPTIONS"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
         </select>
       </label>
 
@@ -195,7 +219,9 @@ async function submit() {
     </div>
 
     <div class="actions">
-      <button type="button" class="primary" @click="submit">开始备份</button>
+      <SubmitButton :loading="submitting" @click="submit">
+        {{ submitting ? "正在提交备份任务..." : "开始备份" }}
+      </SubmitButton>
     </div>
   </section>
 </template>

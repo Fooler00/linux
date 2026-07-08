@@ -1,6 +1,5 @@
 import type { ArchiveType, EncryptAlgo } from "../api/types";
 
-// 统一选项来源，和 backend.cpp 的白名单保持一致，避免各页面各写一套硬编码。
 export const ARCHIVE_TYPE_OPTIONS = [
   { label: "不归档", value: "none" },
   { label: "zip", value: "zip" },

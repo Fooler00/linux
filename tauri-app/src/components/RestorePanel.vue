@@ -1,15 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { reactive } from "vue";
 import { startRestore } from "../api/backup";
 import { showMessage } from "../composables/useMessage";
-import PathInput from "./PathInput.vue";
-import SubmitButton from "./SubmitButton.vue";
-import { ENCRYPT_ALGO_OPTIONS } from "../utils/options";
-import { validateRestoreForm } from "../utils/validation";
 
 const emit = defineEmits<{ submitted: [] }>();
-// 防止同一份还原表单被连续提交，重复创建真实还原任务。
-const submitting = ref(false);
 
 const form = reactive({
   backupPath: "",
@@ -18,18 +12,20 @@ const form = reactive({
   encryptAlgo: "aes-256-cbc",
 });
 
+const encryptAlgos = [
+  "aes-256-cbc",
+  "aes-128-cbc",
+  "camellia-256-cbc",
+  "camellia-128-cbc",
+  "des-ede3-cbc",
+  "chacha20",
+];
+
 async function submit() {
-  if (submitting.value) {
+  if (!form.backupPath.trim() || !form.destination.trim()) {
+    showMessage("请输入备份路径和还原目标目录", "error");
     return;
   }
-
-  const validation = validateRestoreForm(form);
-  if (!validation.valid) {
-    showMessage(validation.message ?? "请检查还原表单", "error");
-    return;
-  }
-
-  submitting.value = true;
 
   try {
     const result = await startRestore({
@@ -42,8 +38,6 @@ async function submit() {
     emit("submitted");
   } catch (error) {
     showMessage(error instanceof Error ? error.message : "还原失败", "error");
-  } finally {
-    submitting.value = false;
   }
 }
 </script>
@@ -52,20 +46,14 @@ async function submit() {
   <section class="panel">
     <h2>还原备份</h2>
     <div class="form-grid">
-      <PathInput
-        v-model="form.backupPath"
-        class="span-2"
-        label="备份文件/目录路径"
-        placeholder="/path/to/backup_xxx"
-        :disabled="submitting"
-      />
-      <PathInput
-        v-model="form.destination"
-        class="span-2"
-        label="还原目标目录"
-        placeholder="/path/to/restore"
-        :disabled="submitting"
-      />
+      <label class="field span-2">
+        <span>备份文件/目录路径</span>
+        <input v-model="form.backupPath" type="text" placeholder="/path/to/backup_xxx" />
+      </label>
+      <label class="field span-2">
+        <span>还原目标目录</span>
+        <input v-model="form.destination" type="text" placeholder="/path/to/restore" />
+      </label>
       <label class="field">
         <span>解密密码（加密备份需要）</span>
         <input v-model="form.password" type="password" />
@@ -73,20 +61,12 @@ async function submit() {
       <label class="field">
         <span>加密算法</span>
         <select v-model="form.encryptAlgo">
-          <option
-            v-for="option in ENCRYPT_ALGO_OPTIONS"
-            :key="option.value"
-            :value="option.value"
-          >
-            {{ option.label }}
-          </option>
+          <option v-for="algo in encryptAlgos" :key="algo" :value="algo">{{ algo }}</option>
         </select>
       </label>
     </div>
     <div class="actions">
-      <SubmitButton :loading="submitting" @click="submit">
-        {{ submitting ? "正在提交还原任务..." : "开始还原" }}
-      </SubmitButton>
+      <button type="button" class="primary" @click="submit">开始还原</button>
     </div>
   </section>
 </template>

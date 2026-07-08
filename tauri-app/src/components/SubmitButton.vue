@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// 统一 loading/disabled 按钮行为，主要用于提交、刷新、清理这类需要防连点的场景。
 withDefaults(
   defineProps<{
     loading?: boolean;

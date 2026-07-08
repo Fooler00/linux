@@ -43,7 +43,7 @@ function getApiErrorMessage(error: unknown): string {
 
   try {
     const parsed = JSON.parse(message) as Partial<ApiError>;
-    // Rust 层会把后端非 2xx 响应体原样作为错误抛出，这里统一提取后端 { error } 文案。
+    // Rust 层会把后端非 2xx 响应体原样作为错误抛出，这里兼容 {"error":"..."}。
     return parsed.error || message;
   } catch {
     return message;

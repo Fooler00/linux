@@ -78,7 +78,6 @@ export function validateRestoreForm(input: RestoreValidationInput): ValidationRe
 }
 
 export function validateBackupManageDestination(destination: string): ValidationResult {
-  // 备份管理页所有真实接口都依赖目录参数，先统一拦截空值，避免无意义请求和误导性报错。
   if (!destination.trim()) {
     return invalid("请输入备份目标目录");
   }

@@ -18,7 +18,7 @@ fi
 
 # 2. 编译代码
 echo "[步骤 1/3] 正在编译 $SOURCE_FILE ..."
-g++ -std=c++17 "$SOURCE_FILE" -o "$OUTPUT_FILE" -lssl -lcrypto -lpthread
+g++ -std=c++17 -DCPPHTTPLIB_OPENSSL_SUPPORT "$SOURCE_FILE" -o "$OUTPUT_FILE" -lssl -lcrypto -lpthread -lsqlite3
 
 # 检查编译是否成功
 if [ $? -ne 0 ]; then

@@ -1,3 +1,17 @@
+export type ArchiveType = "none" | "zip" | "tar" | "tar.gz";
+
+export type EncryptAlgo =
+  | "aes-256-cbc"
+  | "aes-128-cbc"
+  | "camellia-256-cbc"
+  | "camellia-128-cbc"
+  | "des-ede3-cbc"
+  | "chacha20";
+
+export type ArchiveTypeValue = ArchiveType | (string & {});
+
+export type EncryptAlgoValue = EncryptAlgo | (string & {});
+
 export interface Task {
   id: number;
   userId: number;
@@ -25,8 +39,8 @@ export interface BackupFilter {
   group?: string;
   preserveMetadata?: boolean;
   includeSpecialFiles?: boolean;
-  archiveType?: string;
-  encryptAlgo?: string;
+  archiveType?: ArchiveTypeValue;
+  encryptAlgo?: EncryptAlgoValue;
   incremental?: boolean;
   incrementalBase?: string;
 }
@@ -37,8 +51,8 @@ export interface BackupRequest {
   compress?: boolean;
   encrypt?: boolean;
   password?: string;
-  archiveType?: string;
-  encryptAlgo?: string;
+  archiveType?: ArchiveTypeValue;
+  encryptAlgo?: EncryptAlgoValue;
   preserveMetadata?: boolean;
   includeSpecialFiles?: boolean;
   incremental?: boolean;
@@ -50,7 +64,7 @@ export interface RestoreRequest {
   backupPath: string;
   destination: string;
   password?: string;
-  encryptAlgo?: string;
+  encryptAlgo?: EncryptAlgoValue;
 }
 
 export interface WatchRequest {
@@ -99,8 +113,9 @@ export interface BackupMetadata {
   copiedFiles: number;
   userId: number;
   username: string;
-  archiveType: string;
-  encryptAlgo: string;
+  // TODO: /api/metadata 直接读取 metadata.json，历史备份里字段可能缺失或不是当前白名单值。
+  archiveType: ArchiveTypeValue;
+  encryptAlgo: EncryptAlgoValue;
   preserveMetadata: boolean;
   includeSpecialFiles: boolean;
   incremental: boolean;

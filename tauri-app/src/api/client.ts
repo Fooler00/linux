@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { ApiError } from "./types";
 
 export async function apiRequest<T>(
   method: "GET" | "POST",
@@ -29,12 +30,22 @@ export async function apiRequestOrThrow<T>(
   try {
     return await apiRequest<T>(method, path, body, query);
   } catch (error) {
-    const message = String(error);
-    try {
-      const parsed = JSON.parse(message) as { error?: string };
-      throw new Error(parsed.error ?? message);
-    } catch {
-      throw new Error(message || "请求失败");
-    }
+    throw new Error(getApiErrorMessage(error));
+  }
+}
+
+function getApiErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  if (!message) {
+    return "请求失败";
+  }
+
+  try {
+    const parsed = JSON.parse(message) as Partial<ApiError>;
+    // Rust 层会把后端非 2xx 响应体原样作为错误抛出，这里兼容 {"error":"..."}。
+    return parsed.error || message;
+  } catch {
+    return message;
   }
 }

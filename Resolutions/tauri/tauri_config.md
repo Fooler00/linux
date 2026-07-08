@@ -1,4 +1,4 @@
-参考环境：opensuse
+参考环境：linux opensuse
 
 ## 安装系统依赖
 

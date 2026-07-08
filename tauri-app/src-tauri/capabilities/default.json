@@ -6,6 +6,15 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "shell:default"
+    "shell:default",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "backup_server",
+          "sidecar": true
+        }
+      ]
+    }
   ]
 }

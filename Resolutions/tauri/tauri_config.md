@@ -1,6 +1,11 @@
 参考环境：linux opensuse
 
-## 安装系统依赖
+## 安装系统底层依赖
+
+Tauri使用系统自带的Web渲染引擎。  
+需要根据不同系统安装不同的开发工具。  
+
+以opensuse为例：
 
 ```bash
 sudo zypper in -t pattern devel_basis
@@ -15,18 +20,19 @@ sudo zypper in webkit2gtk3-soup2-devel libopenssl-devel curl wget file libappind
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-显示系统已安装rust。先卸载系统rust。
+全部选择默认选项即可。
 
-锁定rust相关rpm包，将其卸载：
+>若显示系统已安装rust，先卸载系统rust。
+>锁定rust相关rpm包，将其卸载：
+>
+>```bash
+>$ rpm -qa | grep -E 'rust|cargo'
+>cargo1.94-1.94.1-1.3.x86_64
+>rust1.94-1.94.1-1.3.x86_64
+>$ sudo zypper remove rust1.94 cargo1.94
+>```
 
-```bash
-$ rpm -qa | grep -E 'rust|cargo'
-cargo1.94-1.94.1-1.3.x86_64
-rust1.94-1.94.1-1.3.x86_64
-$ sudo zypper remove rust1.94 cargo1.94
-```
-
-选择默认安装。使环境变量生效。
+使环境变量生效。
 
 ```bash
 source $HOME/.cargo/env

@@ -1,0 +1,515 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #f3f4f6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.app-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 1.75rem;
+}
+
+.app-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.message-bar {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.message-bar.success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.message-bar.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.message-bar.info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.tab {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.tab.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.panel-header h2 {
+  margin: 0;
+}
+
+.hint {
+  margin: -8px 0 16px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.panel-meta {
+  margin: 4px 0 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.form-grid.nested {
+  margin-top: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.checkbox-group {
+  grid-column: span 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 2px 0;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 4px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+input:not([type="checkbox"]),
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #111827;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+input:not([type="checkbox"]):focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #60a5fa;
+}
+
+.path-input input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.filter-details {
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.filter-details summary {
+  cursor: pointer;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+/* 统一按钮区域布局，供提交、刷新、清理等操作复用。 */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+}
+
+button.primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+button.primary:hover {
+  background: #1d4ed8;
+}
+
+button.secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+button.secondary:hover {
+  background: #d1d5db;
+}
+
+button.danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+button.danger:hover {
+  background: #dc2626;
+}
+
+button.small {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  min-height: 28px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+button.primary:disabled:hover {
+  background: #2563eb;
+}
+
+button.secondary:disabled:hover {
+  background: #e5e7eb;
+}
+
+button.danger:disabled:hover {
+  background: #ef4444;
+}
+
+.button-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: spin 0.8s linear infinite;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.data-table .empty {
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-state {
+  /* 空态块保持轻量，不额外引入卡片层级。 */
+  margin-top: 12px;
+  padding: 24px 16px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #f9fafb;
+  text-align: center;
+}
+
+.empty-state-title {
+  margin: 0;
+  color: #374151;
+  font-weight: 600;
+}
+
+.empty-state-description {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
+
+.status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: lowercase;
+}
+
+.status.running {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status.success {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.status.failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.metadata-box {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.metadata-box h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.metadata-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.metadata-list div {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+}
+
+.metadata-list dt {
+  margin: 0;
+  color: #6b7280;
+}
+
+.metadata-list dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+@media (max-width: 768px) {
+  .form-grid,
+  .metadata-list {
+    grid-template-columns: 1fr;
+  }
+
+  .span-2,
+  .checkbox-group {
+    grid-column: span 1;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e5e7eb;
+    background: #111827;
+  }
+
+  .panel,
+  input:not([type="checkbox"]),
+  select,
+  textarea,
+  .tab {
+    background: #1f2937;
+    border-color: #374151;
+    color: #e5e7eb;
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    background: #111827;
+    color: #9ca3af;
+  }
+
+  .app-header p,
+  .hint,
+  .field span,
+  .metadata-list dt,
+  .empty-state-description {
+    color: #9ca3af;
+  }
+
+  .empty-state {
+    background: #111827;
+    border-color: #374151;
+  }
+
+  .empty-state-title {
+    color: #e5e7eb;
+  }
+
+  .tab.active {
+    background: #2563eb;
+    border-color: #2563eb;
+  }
+
+  .data-table th {
+    background: #111827;
+  }
+
+  .metadata-box {
+    background: #111827;
+  }
+
+  button.secondary {
+    background: #374151;
+    color: #f9fafb;
+  }
+
+  button.secondary:disabled:hover {
+    background: #374151;
+  }
+}

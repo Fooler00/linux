@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ApiError } from "./types";
+import { getSessionToken } from "../utils/session";
 
 export async function apiRequest<T>(
   method: "GET" | "POST",
@@ -12,6 +13,7 @@ export async function apiRequest<T>(
     path,
     body: body !== undefined ? JSON.stringify(body) : null,
     query: query ?? null,
+    authToken: getSessionToken(),
   });
 
   try {

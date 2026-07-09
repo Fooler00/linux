@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import type { AuthUser } from "./api/types";
 import BackupManagePanel from "./components/BackupManagePanel.vue";
+import AuthPanel from "./components/AuthPanel.vue";
 import BackupPanel from "./components/BackupPanel.vue";
 import RestorePanel from "./components/RestorePanel.vue";
 import SchedulePanel from "./components/SchedulePanel.vue";
 import TaskList from "./components/TaskList.vue";
 import WatchPanel from "./components/WatchPanel.vue";
 import { clearMessage, messageState } from "./composables/useMessage";
+import { clearSession, readSession, saveSession } from "./utils/session";
 
 const tabs = [
   { id: "backup", label: "手动备份" },
@@ -21,6 +24,19 @@ type TabId = (typeof tabs)[number]["id"];
 
 const activeTab = ref<TabId>("backup");
 const taskListRef = ref<InstanceType<typeof TaskList> | null>(null);
+const currentUser = ref<AuthUser | null>(readSession());
+
+function onAuthenticated(user: AuthUser) {
+  saveSession(user);
+  currentUser.value = user;
+}
+
+function logout() {
+  clearSession();
+  currentUser.value = null;
+  activeTab.value = "backup";
+  clearMessage();
+}
 
 function onTaskSubmitted() {
   taskListRef.value?.refresh();
@@ -30,8 +46,16 @@ function onTaskSubmitted() {
 <template>
   <div class="app-shell">
     <header class="app-header">
-      <h1>数据备份</h1>
-      <p>基于 Tauri + Vue 的备份管理界面</p>
+      <div>
+        <h1>数据备份</h1>
+        <p>基于 Tauri + Vue 的备份管理界面</p>
+      </div>
+      <div v-if="currentUser" class="header-session">
+        <span class="header-user">当前用户：{{ currentUser.username }}</span>
+        <button type="button" class="secondary small" @click="logout">
+          退出登录
+        </button>
+      </div>
     </header>
 
     <div
@@ -43,26 +67,30 @@ function onTaskSubmitted() {
       {{ messageState.text }}
     </div>
 
-    <nav class="tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        type="button"
-        class="tab"
-        :class="{ active: activeTab === tab.id }"
-        @click="activeTab = tab.id"
-      >
-        {{ tab.label }}
-      </button>
-    </nav>
+    <AuthPanel v-if="!currentUser" @authenticated="onAuthenticated" />
 
-    <main>
-      <BackupPanel v-show="activeTab === 'backup'" @submitted="onTaskSubmitted" />
-      <RestorePanel v-show="activeTab === 'restore'" @submitted="onTaskSubmitted" />
-      <WatchPanel v-show="activeTab === 'watch'" />
-      <SchedulePanel v-show="activeTab === 'schedule'" />
-      <BackupManagePanel v-show="activeTab === 'manage'" />
-      <TaskList v-show="activeTab === 'tasks'" ref="taskListRef" />
-    </main>
+    <template v-else>
+      <nav class="tabs">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          class="tab"
+          :class="{ active: activeTab === tab.id }"
+          @click="activeTab = tab.id"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
+
+      <main>
+        <BackupPanel v-show="activeTab === 'backup'" @submitted="onTaskSubmitted" />
+        <RestorePanel v-show="activeTab === 'restore'" @submitted="onTaskSubmitted" />
+        <WatchPanel v-show="activeTab === 'watch'" />
+        <SchedulePanel v-show="activeTab === 'schedule'" />
+        <BackupManagePanel v-show="activeTab === 'manage'" />
+        <TaskList v-show="activeTab === 'tasks'" ref="taskListRef" />
+      </main>
+    </template>
   </div>
 </template>

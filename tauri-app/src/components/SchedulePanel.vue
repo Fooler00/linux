@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from "vue";
 import { getSchedules, startSchedule, stopSchedule } from "../api/backup";
 import type { Schedule } from "../api/types";
 import { showMessage } from "../composables/useMessage";
+import PathPicker from "./PathPicker.vue";
 
 const schedules = ref<Schedule[]>([]);
 
@@ -76,14 +77,22 @@ onMounted(refresh);
   <section class="panel">
     <h2>定时备份</h2>
     <div class="form-grid">
-      <label class="field span-2">
-        <span>源目录</span>
-        <input v-model="form.source" type="text" />
-      </label>
-      <label class="field span-2">
-        <span>备份目标目录</span>
-        <input v-model="form.destination" type="text" />
-      </label>
+      <PathPicker
+        v-model="form.source"
+        class="span-2"
+        label="源目录"
+        placeholder="/path/to/source"
+        mode="directory"
+        recent-key="source-directories"
+      />
+      <PathPicker
+        v-model="form.destination"
+        class="span-2"
+        label="备份目标目录"
+        placeholder="/path/to/backup"
+        mode="directory"
+        recent-key="backup-destinations"
+      />
       <label class="field">
         <span>定时间隔（秒）</span>
         <input v-model.number="form.intervalSeconds" type="number" min="1" />

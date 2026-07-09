@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/backup_server.dir/src/main.cpp.o CMakeFiles/backup_server.dir/src/server/BackupServer.cpp.o -o backup_server  libbackup_cloud.a libbackup_core.a /usr/lib/x86_64-linux-gnu/libssl.so /usr/lib/x86_64-linux-gnu/libcrypto.so /usr/lib/x86_64-linux-gnu/libsqlite3.so 

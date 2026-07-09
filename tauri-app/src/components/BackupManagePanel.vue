@@ -4,7 +4,7 @@ import { getMetadata, listBackups, pruneBackups } from "../api/backup";
 import type { BackupItem, BackupMetadata } from "../api/types";
 import { showMessage } from "../composables/useMessage";
 import EmptyState from "./EmptyState.vue";
-import PathInput from "./PathInput.vue";
+import PathPicker from "./PathPicker.vue";
 import SubmitButton from "./SubmitButton.vue";
 import { formatBytes, formatTimestamp } from "../utils/format";
 import { validateBackupManageDestination } from "../utils/validation";
@@ -117,11 +117,13 @@ function getMetadataBoolean(value: boolean | null | undefined) {
   <section class="panel">
     <h2>备份管理与淘汰</h2>
     <div class="form-grid">
-      <PathInput
+      <PathPicker
         v-model="destination"
         class="span-2"
         label="备份目标目录"
         placeholder="/path/to/backup"
+        mode="directory"
+        recent-key="backup-destinations"
         :disabled="querying || pruning"
       />
       <label class="field">

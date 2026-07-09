@@ -2,7 +2,7 @@
 import { reactive, ref } from "vue";
 import { startRestore } from "../api/backup";
 import { showMessage } from "../composables/useMessage";
-import PathInput from "./PathInput.vue";
+import PathPicker from "./PathPicker.vue";
 import SubmitButton from "./SubmitButton.vue";
 import { ENCRYPT_ALGO_OPTIONS } from "../utils/options";
 import { validateRestoreForm } from "../utils/validation";
@@ -52,18 +52,22 @@ async function submit() {
   <section class="panel">
     <h2>还原备份</h2>
     <div class="form-grid">
-      <PathInput
+      <PathPicker
         v-model="form.backupPath"
         class="span-2"
         label="备份文件/目录路径"
         placeholder="/path/to/backup_xxx"
+        mode="file"
+        recent-key="restore-files"
         :disabled="submitting"
       />
-      <PathInput
+      <PathPicker
         v-model="form.destination"
         class="span-2"
         label="还原目标目录"
         placeholder="/path/to/restore"
+        mode="directory"
+        recent-key="restore-destinations"
         :disabled="submitting"
       />
       <label class="field">

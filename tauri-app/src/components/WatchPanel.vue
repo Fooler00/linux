@@ -2,6 +2,7 @@
 import { reactive } from "vue";
 import { startWatch, stopWatch } from "../api/backup";
 import { showMessage } from "../composables/useMessage";
+import PathPicker from "./PathPicker.vue";
 
 const form = reactive({
   source: "",
@@ -42,14 +43,22 @@ async function stop() {
     <h2>实时监听备份</h2>
     <p class="hint">监听源目录文件变化，检测到变更后自动触发备份。</p>
     <div class="form-grid">
-      <label class="field span-2">
-        <span>监听源目录</span>
-        <input v-model="form.source" type="text" />
-      </label>
-      <label class="field span-2">
-        <span>备份目标目录</span>
-        <input v-model="form.destination" type="text" />
-      </label>
+      <PathPicker
+        v-model="form.source"
+        class="span-2"
+        label="监听源目录"
+        placeholder="/path/to/source"
+        mode="directory"
+        recent-key="source-directories"
+      />
+      <PathPicker
+        v-model="form.destination"
+        class="span-2"
+        label="备份目标目录"
+        placeholder="/path/to/backup"
+        mode="directory"
+        recent-key="backup-destinations"
+      />
       <label class="field">
         <span>检测间隔（秒）</span>
         <input v-model.number="form.intervalSeconds" type="number" min="1" />

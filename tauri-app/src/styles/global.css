@@ -278,7 +278,33 @@ textarea:focus {
   border-color: #60a5fa;
 }
 
-.path-input input {
+.path-input input,
+.path-picker input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.path-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.path-picker-row input {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.path-picker-button {
+  flex: 0 0 auto;
+}
+
+.path-picker-recent {
+  display: flex;
+}
+
+.path-picker-recent select {
+  width: 100%;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .filter-details {
@@ -516,6 +542,10 @@ button.danger:disabled:hover {
   .span-2,
   .checkbox-group {
     grid-column: span 1;
+  }
+
+  .path-picker-button {
+    width: 100%;
   }
 }
 

@@ -67,6 +67,7 @@ async fn api_request(
     path: String,
     body: Option<String>,
     query: Option<HashMap<String, String>>,
+    auth_token: Option<String>,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
     let method = Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
@@ -75,6 +76,10 @@ async fn api_request(
 
     if let Some(params) = query {
         request = request.query(&params);
+    }
+
+    if let Some(token) = auth_token.filter(|value| !value.trim().is_empty()) {
+        request = request.header("Authorization", format!("Bearer {token}"));
     }
 
     if let Some(payload) = body {

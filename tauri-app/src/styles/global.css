@@ -35,9 +35,29 @@ body {
   font-size: 1.75rem;
 }
 
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
 .app-header p {
   margin: 0;
   color: #6b7280;
+}
+
+.header-session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.header-user {
+  color: #4b5563;
+  font-size: 0.95rem;
 }
 
 .message-bar {
@@ -105,6 +125,45 @@ body {
 .panel h2 {
   margin: 0 0 16px;
   font-size: 1.125rem;
+}
+
+.auth-layout {
+  display: flex;
+  justify-content: center;
+  padding-top: 32px;
+}
+
+.auth-card {
+  width: min(100%, 460px);
+  margin-bottom: 0;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.auth-form {
+  gap: 16px;
+}
+
+.auth-hint {
+  margin-bottom: 20px;
+}
+
+.auth-error {
+  grid-column: span 2;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.auth-actions {
+  margin-top: 0;
 }
 
 .panel-header {
@@ -440,6 +499,15 @@ button.danger:disabled:hover {
 }
 
 @media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-session {
+    justify-content: space-between;
+  }
+
   .form-grid,
   .metadata-list {
     grid-template-columns: 1fr;
@@ -478,7 +546,8 @@ button.danger:disabled:hover {
   .hint,
   .field span,
   .metadata-list dt,
-  .empty-state-description {
+  .empty-state-description,
+  .header-user {
     color: #9ca3af;
   }
 
@@ -502,6 +571,12 @@ button.danger:disabled:hover {
 
   .metadata-box {
     background: #111827;
+  }
+
+  .auth-error {
+    background: rgba(127, 29, 29, 0.25);
+    border-color: rgba(248, 113, 113, 0.35);
+    color: #fca5a5;
   }
 
   button.secondary {

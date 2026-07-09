@@ -1,6 +1,7 @@
-CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o: \
- /workspace/backup_project/src/cloud/CloudConfig.cpp \
+CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o: \
+ /workspace/backup_project/src/cloud/RemoteCloudStorage.cpp \
  /usr/include/stdc-predef.h \
+ /workspace/backup_project/include/cloud/RemoteCloudStorage.h \
  /workspace/backup_project/include/cloud/CloudConfig.h \
  /workspace/backup_project/include/cloud/ICloudStorage.h \
  /usr/include/c++/13/cstdint \
@@ -257,8 +258,6 @@ CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
  /usr/include/c++/13/numeric /usr/include/c++/13/bits/stl_numeric.h \
  /usr/include/c++/13/pstl/glue_numeric_defs.h /usr/include/c++/13/any \
- /workspace/backup_project/include/cloud/LocalCloudStorage.h \
- /workspace/backup_project/include/cloud/RemoteCloudStorage.h \
  /workspace/backup_project/third_party/httplib.h /usr/include/arpa/inet.h \
  /usr/include/netinet/in.h /usr/include/x86_64-linux-gnu/sys/socket.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_iovec.h \

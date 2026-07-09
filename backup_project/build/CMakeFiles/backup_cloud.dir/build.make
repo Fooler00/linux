@@ -83,10 +83,24 @@ CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /workspace/backup_project/src/cloud/LocalCloudStorage.cpp -o CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.s
 
+CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o: CMakeFiles/backup_cloud.dir/flags.make
+CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o: /workspace/backup_project/src/cloud/RemoteCloudStorage.cpp
+CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o: CMakeFiles/backup_cloud.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/workspace/backup_project/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o -MF CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o.d -o CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o -c /workspace/backup_project/src/cloud/RemoteCloudStorage.cpp
+
+CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /workspace/backup_project/src/cloud/RemoteCloudStorage.cpp > CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.i
+
+CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /workspace/backup_project/src/cloud/RemoteCloudStorage.cpp -o CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.s
+
 CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o: CMakeFiles/backup_cloud.dir/flags.make
 CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o: /workspace/backup_project/src/cloud/CloudConfig.cpp
 CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o: CMakeFiles/backup_cloud.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/workspace/backup_project/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/workspace/backup_project/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o -MF CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o.d -o CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o -c /workspace/backup_project/src/cloud/CloudConfig.cpp
 
 CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.i: cmake_force
@@ -100,16 +114,18 @@ CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.s: cmake_force
 # Object files for target backup_cloud
 backup_cloud_OBJECTS = \
 "CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.o" \
+"CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o" \
 "CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o"
 
 # External object files for target backup_cloud
 backup_cloud_EXTERNAL_OBJECTS =
 
 libbackup_cloud.a: CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.o
+libbackup_cloud.a: CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o
 libbackup_cloud.a: CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o
 libbackup_cloud.a: CMakeFiles/backup_cloud.dir/build.make
 libbackup_cloud.a: CMakeFiles/backup_cloud.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/workspace/backup_project/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX static library libbackup_cloud.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/workspace/backup_project/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX static library libbackup_cloud.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/backup_cloud.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/backup_cloud.dir/link.txt --verbose=$(VERBOSE)
 

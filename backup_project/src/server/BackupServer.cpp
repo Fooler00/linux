@@ -17,7 +17,9 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -381,17 +383,45 @@ void BackupServer::registerRoutes()
             res.set_content(TaskManager::instance().toJsonForUser(user).dump(), "application/json");
         } });
 
-    // ===== 云存储接口（网盘模式预留：上传/下载/列表/删除）=====
+    // ===== 云存储接口（网盘模式：支持跨机文件流传输 + token 鉴权）=====
     if (impl_->storage)
     {
         auto storage = impl_->storage;
-        server.Post("/api/cloud/upload", [storage](const httplib::Request &req, httplib::Response &res)
+
+        // 固定 token 校验：与远端 BACKUP_CLOUD_TOKEN 环境变量比对，未配置则放行
+        auto checkToken = [](const httplib::Request &req) -> bool {
+            const char *expected = std::getenv("BACKUP_CLOUD_TOKEN");
+            if (!expected || expected[0] == '\0') return true;  // 未配置 token 则不校验
+            auto it = req.headers.find("Authorization");
+            if (it == req.headers.end()) return false;
+            return it->second == ("Bearer " + std::string(expected));
+        };
+
+        // 上传：multipart（字段 remotePath + 文件 file），支持跨机文件内容传输
+        server.Post("/api/cloud/upload", [storage, checkToken](const httplib::Request &req, httplib::Response &res)
                     {
+            if (!checkToken(req)) {
+                res.status = 401;
+                res.set_content(json{{"error", "未授权"}}.dump(), "application/json");
+                return;
+            }
             try {
-                json body = json::parse(req.body);
-                std::string localPath = body.value("localPath", "");
-                std::string remotePath = body.value("remotePath", "");
-                if (storage->upload(localPath, remotePath)) {
+                if (!req.form.has_file("file") || !req.form.has_field("remotePath")) {
+                    res.status = 400;
+                    res.set_content(json{{"error", "缺少 file 或 remotePath 字段"}}.dump(), "application/json");
+                    return;
+                }
+                std::string remotePath = req.form.get_field("remotePath");
+                const auto &file = req.form.get_file("file");
+                // 落临时文件再交给 storage 写入（保持 ICloudStorage 接口不变）
+                fs::path tmp = fs::temp_directory_path() / ("cloud_up_" + std::to_string(std::time(nullptr)));
+                {
+                    std::ofstream out(tmp, std::ios::binary);
+                    out << file.content;
+                }
+                bool ok = storage->upload(tmp, remotePath);
+                fs::remove(tmp);
+                if (ok) {
                     res.set_content(json{{"message", "上传成功"}}.dump(), "application/json");
                 } else {
                     res.status = 500;
@@ -402,25 +432,47 @@ void BackupServer::registerRoutes()
                 res.set_content(json{{"error", e.what()}}.dump(), "application/json");
             } });
 
-        server.Post("/api/cloud/download", [storage](const httplib::Request &req, httplib::Response &res)
+        // 下载：GET 流式返回文件内容，支持跨机大文件传输
+        server.Get("/api/cloud/download", [storage, checkToken](const httplib::Request &req, httplib::Response &res)
                     {
+            if (!checkToken(req)) {
+                res.status = 401;
+                res.set_content(json{{"error", "未授权"}}.dump(), "application/json");
+                return;
+            }
             try {
-                json body = json::parse(req.body);
-                std::string remotePath = body.value("remotePath", "");
-                std::string localPath = body.value("localPath", "");
-                if (storage->download(remotePath, localPath)) {
-                    res.set_content(json{{"message", "下载成功"}}.dump(), "application/json");
-                } else {
+                std::string remotePath = req.get_param_value("remotePath");
+                fs::path tmp = fs::temp_directory_path() / ("cloud_dl_" + std::to_string(std::time(nullptr)));
+                if (!storage->download(remotePath, tmp)) {
                     res.status = 500;
                     res.set_content(json{{"error", "下载失败"}}.dump(), "application/json");
+                    return;
                 }
+                // 流式返回，避免大文件占满内存
+                auto size = fs::file_size(tmp);
+                res.set_content_provider(size, "application/octet-stream",
+                    [tmp](size_t offset, size_t /*length*/, httplib::DataSink &sink) {
+                        std::ifstream in(tmp, std::ios::binary);
+                        in.seekg(offset);
+                        char buf[65536];
+                        while (in.read(buf, sizeof(buf)) || in.gcount() > 0) {
+                            sink.write(buf, static_cast<size_t>(in.gcount()));
+                        }
+                        return true;
+                    }, [tmp](bool) { fs::remove(tmp); });
             } catch (const std::exception& e) {
                 res.status = 400;
                 res.set_content(json{{"error", e.what()}}.dump(), "application/json");
             } });
 
-        server.Get("/api/cloud/list", [storage](const httplib::Request &req, httplib::Response &res)
+        // 列出云端目录
+        server.Get("/api/cloud/list", [storage, checkToken](const httplib::Request &req, httplib::Response &res)
                     {
+            if (!checkToken(req)) {
+                res.status = 401;
+                res.set_content(json{{"error", "未授权"}}.dump(), "application/json");
+                return;
+            }
             try {
                 std::string remoteDir = req.get_param_value("dir");
                 auto files = storage->list(remoteDir);
@@ -434,8 +486,14 @@ void BackupServer::registerRoutes()
                 res.set_content(json{{"error", e.what()}}.dump(), "application/json");
             } });
 
-        server.Post("/api/cloud/delete", [storage](const httplib::Request &req, httplib::Response &res)
+        // 删除云端文件
+        server.Post("/api/cloud/delete", [storage, checkToken](const httplib::Request &req, httplib::Response &res)
                     {
+            if (!checkToken(req)) {
+                res.status = 401;
+                res.set_content(json{{"error", "未授权"}}.dump(), "application/json");
+                return;
+            }
             try {
                 json body = json::parse(req.body);
                 std::string remotePath = body.value("remotePath", "");

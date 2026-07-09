@@ -10,6 +10,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/workspace/backup_project/src/cloud/CloudConfig.cpp" "CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o" "gcc" "CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o.d"
   "/workspace/backup_project/src/cloud/LocalCloudStorage.cpp" "CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.o" "gcc" "CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.o.d"
+  "/workspace/backup_project/src/cloud/RemoteCloudStorage.cpp" "CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o" "gcc" "CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

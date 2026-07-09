@@ -3,6 +3,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o.d"
   "CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.o"
   "CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.o.d"
+  "CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o"
+  "CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o.d"
   "libbackup_cloud.a"
   "libbackup_cloud.pdb"
 )

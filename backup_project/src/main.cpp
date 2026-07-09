@@ -68,10 +68,30 @@ int main()
 {
     auto cfg = loadServerConfig();
 
-    // 创建云存储后端（当前 local 模式，预留 remote 扩展）
+    // 创建云存储后端：支持 local（单机）与 remote（连接 VM 网盘服务器）
     backup::cloud::CloudConfig cloudCfg;
-    cloudCfg.type = "local";
-    cloudCfg.rootDir = cfg.cloudRootDir.empty() ? "./cloud_storage" : cfg.cloudRootDir;
+
+    // 优先环境变量
+    if (const char *t = std::getenv("BACKUP_CLOUD_TYPE"))
+    {
+        cloudCfg.type = t;
+    }
+    if (cloudCfg.type == "remote")
+    {
+        // 远程网盘模式：连接指定 VM 服务器
+        if (const char *e = std::getenv("BACKUP_CLOUD_ENDPOINT")) cloudCfg.endpoint = e;
+        if (const char *tk = std::getenv("BACKUP_CLOUD_TOKEN")) cloudCfg.token = tk;
+        if (const char *u = std::getenv("BACKUP_CLOUD_USER")) cloudCfg.username = u;
+        if (const char *p = std::getenv("BACKUP_CLOUD_PASS")) cloudCfg.password = p;
+        cloudCfg.tls = std::getenv("BACKUP_CLOUD_TLS") != nullptr;
+    }
+    else
+    {
+        // 本地单机模式
+        cloudCfg.type = "local";
+        cloudCfg.rootDir = cfg.cloudRootDir.empty() ? "./cloud_storage" : cfg.cloudRootDir;
+    }
+
     auto storage = backup::cloud::createCloudStorage(cloudCfg);
 
     backup::server::BackupServer server(cfg, std::move(storage));

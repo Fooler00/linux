@@ -39,9 +39,10 @@ add_library(backup_core STATIC
 target_link_libraries(backup_core PUBLIC OpenSSL::SSL OpenSSL::Crypto Threads::Threads SQLite::SQLite3)
 target_include_directories(backup_core PUBLIC include third_party)
 
-# ===== 网盘接口库（含本地实现，预留远程扩展）=====
+# ===== 网盘接口库（含本地与远程实现）=====
 add_library(backup_cloud STATIC
     src/cloud/LocalCloudStorage.cpp
+    src/cloud/RemoteCloudStorage.cpp
     src/cloud/CloudConfig.cpp
 )
 target_link_libraries(backup_cloud PUBLIC backup_core)

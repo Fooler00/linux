@@ -4,6 +4,7 @@
 
 #include "cloud/CloudConfig.h"
 #include "cloud/LocalCloudStorage.h"
+#include "cloud/RemoteCloudStorage.h"
 
 #include <stdexcept>
 
@@ -29,13 +30,13 @@ std::unique_ptr<ICloudStorage> createCloudStorage(const CloudConfig &config)
         return std::make_unique<LocalCloudStorage>(config.rootDir);
     }
 
-    // 预留远程后端：实现 RemoteCloudStorage 后在此分支注册
-    // if (config.type == "remote") {
-    //     return std::make_unique<RemoteCloudStorage>(config);
-    // }
+    if (config.type == "remote")
+    {
+        return std::make_unique<RemoteCloudStorage>(config);
+    }
 
     throw std::runtime_error("不支持的云存储类型: " + config.type +
-                             "（当前仅支持 local，远程后端预留接口未实现）");
+                             "（当前支持 local / remote）");
 }
 
 } // namespace backup::cloud

@@ -240,6 +240,30 @@ src/cloud/LocalCloudStorage.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/backup_cloud.dir/build.make CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.s
 .PHONY : src/cloud/LocalCloudStorage.cpp.s
 
+src/cloud/RemoteCloudStorage.o: src/cloud/RemoteCloudStorage.cpp.o
+.PHONY : src/cloud/RemoteCloudStorage.o
+
+# target to build an object file
+src/cloud/RemoteCloudStorage.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/backup_cloud.dir/build.make CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.o
+.PHONY : src/cloud/RemoteCloudStorage.cpp.o
+
+src/cloud/RemoteCloudStorage.i: src/cloud/RemoteCloudStorage.cpp.i
+.PHONY : src/cloud/RemoteCloudStorage.i
+
+# target to preprocess a source file
+src/cloud/RemoteCloudStorage.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/backup_cloud.dir/build.make CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.i
+.PHONY : src/cloud/RemoteCloudStorage.cpp.i
+
+src/cloud/RemoteCloudStorage.s: src/cloud/RemoteCloudStorage.cpp.s
+.PHONY : src/cloud/RemoteCloudStorage.s
+
+# target to generate assembly for a file
+src/cloud/RemoteCloudStorage.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/backup_cloud.dir/build.make CMakeFiles/backup_cloud.dir/src/cloud/RemoteCloudStorage.cpp.s
+.PHONY : src/cloud/RemoteCloudStorage.cpp.s
+
 src/core/Archive.o: src/core/Archive.cpp.o
 .PHONY : src/core/Archive.o
 
@@ -573,6 +597,9 @@ help:
 	@echo "... src/cloud/LocalCloudStorage.o"
 	@echo "... src/cloud/LocalCloudStorage.i"
 	@echo "... src/cloud/LocalCloudStorage.s"
+	@echo "... src/cloud/RemoteCloudStorage.o"
+	@echo "... src/cloud/RemoteCloudStorage.i"
+	@echo "... src/cloud/RemoteCloudStorage.s"
 	@echo "... src/core/Archive.o"
 	@echo "... src/core/Archive.i"
 	@echo "... src/core/Archive.s"

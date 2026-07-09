@@ -1,0 +1,2 @@
+/usr/bin/ar qc libbackup_cloud.a CMakeFiles/backup_cloud.dir/src/cloud/LocalCloudStorage.cpp.o CMakeFiles/backup_cloud.dir/src/cloud/CloudConfig.cpp.o
+/usr/bin/ranlib libbackup_cloud.a

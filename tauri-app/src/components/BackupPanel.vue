@@ -2,7 +2,7 @@
 import { reactive, ref } from "vue";
 import { startBackup } from "../api/backup";
 import { showMessage } from "../composables/useMessage";
-import PathInput from "./PathInput.vue";
+import PathPicker from "./PathPicker.vue";
 import SubmitButton from "./SubmitButton.vue";
 import { splitLines } from "../utils/format";
 import { ARCHIVE_TYPE_OPTIONS, ENCRYPT_ALGO_OPTIONS } from "../utils/options";
@@ -99,18 +99,22 @@ async function submit() {
   <section class="panel">
     <h2>手动备份</h2>
     <div class="form-grid">
-      <PathInput
+      <PathPicker
         v-model="form.source"
         class="span-2"
         label="源目录"
         placeholder="/path/to/source"
+        mode="directory"
+        recent-key="source-directories"
         :disabled="submitting"
       />
-      <PathInput
+      <PathPicker
         v-model="form.destination"
         class="span-2"
         label="备份目标目录"
         placeholder="/path/to/backup"
+        mode="directory"
+        recent-key="backup-destinations"
         :disabled="submitting"
       />
 
@@ -166,10 +170,16 @@ async function submit() {
         <span>加密密码</span>
         <input v-model="form.password" type="password" />
       </label>
-      <label v-if="form.incremental" class="field span-2">
-        <span>增量基线目录</span>
-        <input v-model="form.incrementalBase" type="text" placeholder="上一次完整备份目录" />
-      </label>
+      <PathPicker
+        v-if="form.incremental"
+        v-model="form.incrementalBase"
+        class="span-2"
+        label="增量基线目录"
+        placeholder="上一次完整备份目录"
+        mode="directory"
+        recent-key="backup-base-directories"
+        :disabled="submitting"
+      />
 
       <details class="span-2 filter-details">
         <summary>高级筛选</summary>

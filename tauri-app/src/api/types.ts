@@ -127,3 +127,21 @@ export interface BackupMetadata {
 export interface ApiError {
   error: string;
 }
+
+export interface AuthUser {
+  userId: number;
+  username: string;
+  token: string;
+}
+
+export interface AuthResponse extends AuthUser {}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  password: string;
+}

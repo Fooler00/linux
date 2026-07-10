@@ -41,7 +41,13 @@ async function stop() {
 <template>
   <section class="panel">
     <h2>实时监听备份</h2>
-    <p class="hint">监听源目录文件变化，检测到变更后自动触发备份。</p>
+    <!-- 状态提示条：用克制深蓝传达"监听"语义，区别于普通 hint 文本 -->
+    <div class="watch-hint-bar">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>监听源目录文件变化，检测到变更后自动触发备份。</span>
+    </div>
     <div class="form-grid">
       <PathPicker
         v-model="form.source"

@@ -150,6 +150,33 @@ std::string nowString()
     return oss.str();
 }
 
+fs::path createUniqueBackupDir(const fs::path &destination)
+{
+    for (int attempt = 0; attempt < 1000; ++attempt)
+    {
+        std::ostringstream name;
+        name << "backup_" << nowString();
+        if (attempt > 0)
+        {
+            name << "_" << std::setw(3) << std::setfill('0') << attempt;
+        }
+
+        fs::path backupDir = destination / name.str();
+        std::error_code ec;
+        // 原子预留目录名，避免同一秒或并发备份互相覆盖。
+        if (fs::create_directory(backupDir, ec))
+        {
+            return backupDir;
+        }
+        if (ec)
+        {
+            throw std::runtime_error("创建备份目录失败: " + ec.message());
+        }
+    }
+
+    throw std::runtime_error("无法创建唯一备份目录，请稍后重试");
+}
+
 std::string bytesToHex(const unsigned char *data, std::size_t size)
 {
     std::ostringstream oss;
@@ -1112,8 +1139,7 @@ fs::path createBackup(
 
     fs::create_directories(destination);
 
-    fs::path backupDir = destination / ("backup_" + nowString());
-    fs::create_directories(backupDir);
+    fs::path backupDir = createUniqueBackupDir(destination);
 
     int copiedFiles = 0;
     std::map<std::string, std::string> newHashes;

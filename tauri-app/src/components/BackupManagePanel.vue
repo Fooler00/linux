@@ -116,6 +116,7 @@ function getMetadataBoolean(value: boolean | null | undefined) {
 <template>
   <section class="panel">
     <h2>备份管理与淘汰</h2>
+    <p class="hint">查询指定目录下的历史备份，查看元数据或按策略自动淘汰旧备份。</p>
     <div class="form-grid">
       <PathPicker
         v-model="destination"
@@ -152,7 +153,9 @@ function getMetadataBoolean(value: boolean | null | undefined) {
       description="请确认目录是否正确，或先执行一次备份。"
     />
 
-    <div v-else class="table-wrap">
+    <div v-else class="panel-subsection">
+      <h3>备份列表</h3>
+      <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr>
@@ -181,8 +184,10 @@ function getMetadataBoolean(value: boolean | null | undefined) {
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
+    <!-- 元数据以独立卡片展示，与列表区分离层次 -->
     <div v-if="metadata" class="metadata-box">
       <h3>元数据：{{ selectedPath }}</h3>
       <dl class="metadata-list">

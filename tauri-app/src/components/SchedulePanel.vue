@@ -76,6 +76,7 @@ onMounted(refresh);
 <template>
   <section class="panel">
     <h2>定时备份</h2>
+    <p class="hint">配置定时间隔与保留策略，系统将按周期自动执行备份。</p>
     <div class="form-grid">
       <PathPicker
         v-model="form.source"
@@ -125,7 +126,10 @@ onMounted(refresh);
       <button type="button" class="secondary" @click="refresh">刷新列表</button>
     </div>
 
-    <div class="table-wrap">
+    <!-- 运行中的定时任务以表格卡片呈现，与表单区形成层次 -->
+    <div class="panel-subsection">
+      <h3>运行中的定时任务</h3>
+      <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr>
@@ -158,6 +162,7 @@ onMounted(refresh);
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </section>
 </template>

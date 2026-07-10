@@ -51,6 +51,7 @@ async function submit() {
 <template>
   <section class="panel">
     <h2>还原备份</h2>
+    <p class="hint">指定备份文件路径与还原目标目录，加密备份需填写对应密码。</p>
     <div class="form-grid">
       <PathPicker
         v-model="form.backupPath"

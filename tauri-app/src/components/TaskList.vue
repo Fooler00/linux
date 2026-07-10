@@ -111,9 +111,14 @@ defineExpose({ refresh });
             <td class="mono">{{ task.source }}</td>
             <td class="mono">{{ task.destination }}</td>
             <td>
+              <!-- 状态徽章 + 呼吸灯圆点；进行中时附加不确定进度条 -->
               <span class="status" :class="getStatusClass(task.status)">
+                <span class="status-dot" aria-hidden="true"></span>
                 {{ task.status }}
               </span>
+              <div v-if="task.status === 'running'" class="task-progress" aria-hidden="true">
+                <div class="task-progress-bar"></div>
+              </div>
             </td>
             <td class="mono">{{ task.message || "-" }}</td>
             <td>{{ task.createdAt }}</td>

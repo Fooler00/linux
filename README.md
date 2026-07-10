@@ -10,7 +10,8 @@
 编译获得可执行文件：
 
 ```bash
-g++ -std=c++17 -DCPPHTTPLIB_OPENSSL_SUPPORT backend.cpp -o backup_server -lssl -lcrypto -lpthread -lsqlite3
+cd backup_project/build
+cmake .. && make -j$(nproc)
 ```
 
 当前sidecar命名为`backup_server`，不建议修改。

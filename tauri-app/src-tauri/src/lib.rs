@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use reqwest::Method;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
@@ -29,9 +31,21 @@ async fn wait_for_server() -> Result<(), String> {
 }
 
 fn spawn_backup_server(app: &tauri::AppHandle) -> Result<(), String> {
+    let runtime_dir = resolve_runtime_dir(app)?;
+    let cloud_dir = runtime_dir.join("cloud_storage");
+    let db_path = runtime_dir.join("users.db");
+
     let sidecar = app
         .shell()
         .sidecar("backup_server")
+        .map(|command| {
+            command
+                .current_dir(&runtime_dir)
+                .env("BACKUP_PORT", "8080")
+                .env("BACKUP_DB", db_path.as_os_str())
+                .env("BACKUP_CLOUD_DIR", cloud_dir.as_os_str())
+                .env("BACKUP_CLOUD_TYPE", "local")
+        })
         .map_err(|e| format!("无法加载 sidecar: {e}"))?;
 
     let (mut rx, _child) = sidecar
@@ -59,6 +73,18 @@ fn spawn_backup_server(app: &tauri::AppHandle) -> Result<(), String> {
     });
 
     Ok(())
+}
+
+fn resolve_runtime_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let runtime_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("无法解析应用数据目录: {e}"))?;
+
+    fs::create_dir_all(runtime_dir.join("cloud_storage"))
+        .map_err(|e| format!("无法创建运行时目录: {e}"))?;
+
+    Ok(runtime_dir)
 }
 
 #[tauri::command]

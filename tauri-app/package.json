@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build:web": "vue-tsc --noEmit && vite build",
+    "build:sidecar": "bash ../scripts/build-backup-sidecar.sh",
+    "build": "npm run build:sidecar && npm run build:web",
     "preview": "vite preview",
     "tauri": "tauri"
   },

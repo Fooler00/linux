@@ -1,12 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ApiError } from "./types";
+import { getCloudToken } from "../utils/cloudToken";
 import { getSessionToken } from "../utils/session";
+
+export interface ApiRequestOptions {
+  cloudToken?: string | null;
+}
 
 export async function apiRequest<T>(
   method: "GET" | "POST",
   path: string,
   body?: unknown,
-  query?: Record<string, string>
+  query?: Record<string, string>,
+  options?: ApiRequestOptions
 ): Promise<T> {
   const raw = await invoke<string>("api_request", {
     method,
@@ -14,6 +20,7 @@ export async function apiRequest<T>(
     body: body !== undefined ? JSON.stringify(body) : null,
     query: query ?? null,
     authToken: getSessionToken(),
+    cloudToken: options?.cloudToken ?? getCloudToken(),
   });
 
   try {
@@ -27,10 +34,11 @@ export async function apiRequestOrThrow<T>(
   method: "GET" | "POST",
   path: string,
   body?: unknown,
-  query?: Record<string, string>
+  query?: Record<string, string>,
+  options?: ApiRequestOptions
 ): Promise<T> {
   try {
-    return await apiRequest<T>(method, path, body, query);
+    return await apiRequest<T>(method, path, body, query, options);
   } catch (error) {
     throw new Error(getApiErrorMessage(error));
   }

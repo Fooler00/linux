@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use reqwest::Method;
+use reqwest::multipart;
 use tauri::{Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
@@ -87,6 +88,25 @@ fn resolve_runtime_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(runtime_dir)
 }
 
+fn apply_auth_header(
+    request: reqwest::RequestBuilder,
+    auth_token: Option<String>,
+    cloud_token: Option<String>,
+    path: &str,
+) -> reqwest::RequestBuilder {
+    if path.starts_with("/api/cloud") {
+        if let Some(token) = cloud_token.filter(|value| !value.trim().is_empty()) {
+            return request.header("Authorization", format!("Bearer {token}"));
+        }
+    }
+
+    if let Some(token) = auth_token.filter(|value| !value.trim().is_empty()) {
+        return request.header("Authorization", format!("Bearer {token}"));
+    }
+
+    request
+}
+
 #[tauri::command]
 async fn api_request(
     method: String,
@@ -94,6 +114,7 @@ async fn api_request(
     body: Option<String>,
     query: Option<HashMap<String, String>>,
     auth_token: Option<String>,
+    cloud_token: Option<String>,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
     let method = Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
@@ -104,9 +125,7 @@ async fn api_request(
         request = request.query(&params);
     }
 
-    if let Some(token) = auth_token.filter(|value| !value.trim().is_empty()) {
-        request = request.header("Authorization", format!("Bearer {token}"));
-    }
+    request = apply_auth_header(request, auth_token, cloud_token, &path);
 
     if let Some(payload) = body {
         request = request
@@ -123,6 +142,91 @@ async fn api_request(
     } else {
         Err(text)
     }
+}
+
+#[tauri::command]
+async fn cloud_upload(
+    local_path: String,
+    remote_path: String,
+    cloud_token: Option<String>,
+) -> Result<String, String> {
+    let local = Path::new(&local_path);
+    if !local.is_file() {
+        return Err("本地文件不存在".into());
+    }
+
+    let file_name = local
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("upload.bin")
+        .to_string();
+    let file_bytes = fs::read(local).map_err(|e| format!("读取本地文件失败: {e}"))?;
+
+    let part = multipart::Part::bytes(file_bytes)
+        .file_name(file_name)
+        .mime_str("application/octet-stream")
+        .map_err(|e| e.to_string())?;
+
+    let form = multipart::Form::new()
+        .text("remotePath", remote_path)
+        .part("file", part);
+
+    let client = reqwest::Client::new();
+    let mut request = client
+        .post(format!("{API_BASE}/api/cloud/upload"))
+        .multipart(form);
+
+    if let Some(token) = cloud_token.filter(|value| !value.trim().is_empty()) {
+        request = request.header("Authorization", format!("Bearer {token}"));
+    }
+
+    let response = request.send().await.map_err(|e| e.to_string())?;
+    let status = response.status();
+    let text = response.text().await.map_err(|e| e.to_string())?;
+
+    if status.is_success() {
+        Ok(text)
+    } else {
+        Err(text)
+    }
+}
+
+#[tauri::command]
+async fn cloud_download(
+    remote_path: String,
+    local_path: String,
+    cloud_token: Option<String>,
+) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let mut request = client
+        .get(format!("{API_BASE}/api/cloud/download"))
+        .query(&[("remotePath", remote_path.as_str())]);
+
+    if let Some(token) = cloud_token.filter(|value| !value.trim().is_empty()) {
+        request = request.header("Authorization", format!("Bearer {token}"));
+    }
+
+    let response = request.send().await.map_err(|e| e.to_string())?;
+    let status = response.status();
+
+    if !status.is_success() {
+        let text = response.text().await.unwrap_or_default();
+        return Err(if text.is_empty() {
+            format!("下载失败，HTTP {}", status)
+        } else {
+            text
+        });
+    }
+
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    let target = PathBuf::from(&local_path);
+
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("创建目录失败: {e}"))?;
+    }
+
+    fs::write(&target, bytes).map_err(|e| format!("写入本地文件失败: {e}"))?;
+    Ok(local_path)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -145,7 +249,7 @@ pub fn run() {
             let _ = handle.emit("backup-server-ready", ());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![api_request])
+        .invoke_handler(tauri::generate_handler![api_request, cloud_upload, cloud_download])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

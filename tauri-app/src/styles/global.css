@@ -127,6 +127,31 @@ body {
   font-size: 1.125rem;
 }
 
+.panel-subsection {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.panel-subsection h3 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+}
+
+.hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f3f4f6;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .auth-layout {
   display: flex;
   justify-content: center;
@@ -178,9 +203,17 @@ body {
 }
 
 .hint {
-  margin: -8px 0 16px;
+  margin: 0 0 16px;
   color: #6b7280;
   font-size: 0.9rem;
+}
+
+.panel > h2 + .hint {
+  margin-top: -8px;
+}
+
+.actions + .hint {
+  margin-top: 12px;
 }
 
 .panel-meta {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { AuthUser } from "./api/types";
+import CloudPanel from "./components/CloudPanel.vue";
 import BackupManagePanel from "./components/BackupManagePanel.vue";
 import AuthPanel from "./components/AuthPanel.vue";
 import BackupPanel from "./components/BackupPanel.vue";
@@ -17,6 +18,7 @@ const tabs = [
   { id: "watch", label: "实时监听" },
   { id: "schedule", label: "定时备份" },
   { id: "manage", label: "备份管理" },
+  { id: "cloud", label: "云存储" },
   { id: "tasks", label: "任务列表" },
 ] as const;
 
@@ -89,6 +91,7 @@ function onTaskSubmitted() {
         <WatchPanel v-show="activeTab === 'watch'" />
         <SchedulePanel v-show="activeTab === 'schedule'" />
         <BackupManagePanel v-show="activeTab === 'manage'" />
+        <CloudPanel v-show="activeTab === 'cloud'" />
         <TaskList v-show="activeTab === 'tasks'" ref="taskListRef" />
       </main>
     </template>

@@ -145,3 +145,17 @@ export interface RegisterRequest {
   username: string;
   password: string;
 }
+
+export interface CloudFile {
+  path: string;
+  size: number;
+  modified: number;
+}
+
+export interface CloudDeleteRequest {
+  remotePath: string;
+}
+
+export interface CloudMessageResponse {
+  message: string;
+}

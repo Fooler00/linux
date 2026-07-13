@@ -964,6 +964,20 @@ button:disabled {
   color: var(--running);
 }
 
+/* 监听进行中：停止按钮高亮，与置灰的启动按钮形成互斥视觉 */
+.watch-stop-active {
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: var(--error-border);
+  box-shadow: 0 0 0 3px var(--error-bg);
+}
+
+.watch-stop-active:hover:not(:disabled) {
+  background: var(--error-bg);
+  border-color: var(--error);
+  filter: brightness(1.05);
+}
+
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;

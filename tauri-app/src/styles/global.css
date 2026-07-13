@@ -580,6 +580,72 @@ textarea:focus {
   color: var(--text-secondary);
 }
 
+/* 多文件 Chip 列表：清晰展示跨目录选中项 */
+.path-picker-multi-active {
+  border-color: var(--accent-muted);
+}
+
+.path-picker-multi-summary {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.path-picker-chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.path-picker-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  transition: var(--transition);
+}
+
+.path-picker-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.path-picker-chip-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path-picker-chip-remove {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.path-picker-chip-remove:hover:not(:disabled) {
+  color: var(--error);
+  border-color: var(--error-border);
+  background: var(--error-bg);
+}
+
+.path-picker-multi-actions {
+  margin-top: 8px;
+}
+
+.checkbox-disabled {
+  opacity: 0.6;
+}
+
 .filter-details {
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);

@@ -15,6 +15,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <ctime>
@@ -87,6 +88,60 @@ std::map<std::string, fs::file_time_type> snapshotFiles(const fs::path &root)
         }
     }
     return files;
+}
+
+std::vector<std::string> parseSourceList(const json &body)
+{
+    std::vector<std::string> sources;
+    if (!body.contains("sources") || !body["sources"].is_array())
+    {
+        return sources;
+    }
+
+    for (const auto &item : body["sources"])
+    {
+        if (!item.is_string())
+        {
+            continue;
+        }
+
+        std::string path = item.get<std::string>();
+        if (path.empty())
+        {
+            continue;
+        }
+
+        if (std::find(sources.begin(), sources.end(), path) == sources.end())
+        {
+            sources.push_back(path);
+        }
+    }
+
+    return sources;
+}
+
+std::string summarizeSources(const std::vector<std::string> &sources)
+{
+    if (sources.empty())
+    {
+        return "";
+    }
+
+    if (sources.size() == 1)
+    {
+        return sources.front();
+    }
+
+    std::string summary = std::to_string(sources.size()) + " files: " + sources[0];
+    if (sources.size() > 1)
+    {
+        summary += ", " + sources[1];
+    }
+    if (sources.size() > 2)
+    {
+        summary += ", ...";
+    }
+    return summary;
 }
 
 } // namespace
@@ -173,24 +228,64 @@ void BackupServer::registerRoutes()
         try {
             json body = json::parse(req.body);
             std::string source = body.value("source", "");
+            std::vector<std::string> sources = parseSourceList(body);
             std::string destination = body.value("destination", "");
             bool compress = body.value("compress", false);
             bool encrypt = body.value("encrypt", false);
             std::string password = body.value("password", "");
 
+            if (destination.empty())
+            {
+                throw std::runtime_error("destination 不能为空");
+            }
+
+            const bool multiSourceMode = !sources.empty();
+            if (!multiSourceMode && source.empty())
+            {
+                throw std::runtime_error("source 或 sources 必须提供其一");
+            }
+
             User user = optionalUserFromRequest(req, &body);
             BackupFilter filter = parseBackupFilter(body, user);
 
-            int taskId = TaskManager::instance().add("backup", source, destination, user);
+            if (multiSourceMode && filter.incremental)
+            {
+                throw std::runtime_error("多文件备份不支持增量模式");
+            }
 
-            std::thread([taskId, source, destination, compress, encrypt, password, filter]() {
-                try {
-                    fs::path result = createBackup(source, destination, compress, encrypt, password, filter);
-                    TaskManager::instance().update(taskId, "success", "备份完成：" + result.string());
-                } catch (const std::exception& e) {
-                    TaskManager::instance().update(taskId, "failed", e.what());
+            std::string taskSource = multiSourceMode ? summarizeSources(sources) : source;
+            int taskId = TaskManager::instance().add("backup", taskSource, destination, user);
+
+            if (multiSourceMode)
+            {
+                std::vector<fs::path> sourcePaths;
+                sourcePaths.reserve(sources.size());
+                for (const auto &item : sources)
+                {
+                    sourcePaths.emplace_back(item);
                 }
-            }).detach();
+
+                std::thread([taskId, sourcePaths, destination, compress, encrypt, password, filter]() {
+                    try {
+                        fs::path result = createBackupFromSources(
+                            sourcePaths, destination, compress, encrypt, password, filter);
+                        TaskManager::instance().update(taskId, "success", "备份完成：" + result.string());
+                    } catch (const std::exception& e) {
+                        TaskManager::instance().update(taskId, "failed", e.what());
+                    }
+                }).detach();
+            }
+            else
+            {
+                std::thread([taskId, source, destination, compress, encrypt, password, filter]() {
+                    try {
+                        fs::path result = createBackup(source, destination, compress, encrypt, password, filter);
+                        TaskManager::instance().update(taskId, "success", "备份完成：" + result.string());
+                    } catch (const std::exception& e) {
+                        TaskManager::instance().update(taskId, "failed", e.what());
+                    }
+                }).detach();
+            }
 
             res.set_content(json{{"taskId", taskId}}.dump(), "application/json");
         } catch (const std::exception& e) {

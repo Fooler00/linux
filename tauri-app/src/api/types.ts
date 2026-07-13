@@ -48,7 +48,8 @@ export interface BackupFilter {
 }
 
 export interface BackupRequest {
-  source: string;
+  source?: string;
+  sources?: string[];
   destination: string;
   compress?: boolean;
   encrypt?: boolean;
@@ -109,6 +110,7 @@ export interface BackupItem {
 
 export interface BackupMetadata {
   source: string;
+  sources?: string[];
   backupTime: string;
   mode: string;
   size: number;

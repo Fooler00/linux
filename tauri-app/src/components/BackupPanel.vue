@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { startBackup } from "../api/backup";
 import { showMessage } from "../composables/useMessage";
 import PathPicker from "./PathPicker.vue";
@@ -14,6 +14,7 @@ const submitting = ref(false);
 
 const form = reactive({
   source: "",
+  sources: [] as string[],
   destination: "",
   compress: false,
   encrypt: false,
@@ -35,6 +36,17 @@ const form = reactive({
   owner: "",
   group: "",
 });
+
+const isMultiSourceMode = computed(() => form.sources.length > 0);
+
+watch(
+  () => form.sources.length,
+  (count) => {
+    if (count > 0 && form.incremental) {
+      form.incremental = false;
+    }
+  }
+);
 
 async function submit() {
   if (submitting.value) {
@@ -71,8 +83,8 @@ async function submit() {
   if (form.group.trim()) filter.group = form.group.trim();
 
   try {
-    const result = await startBackup({
-      source: form.source.trim(),
+    const multiSourceMode = form.sources.length > 0;
+    const payload = {
       destination: form.destination.trim(),
       compress: form.compress,
       encrypt: form.encrypt,
@@ -84,7 +96,12 @@ async function submit() {
       incremental: form.incremental,
       incrementalBase: form.incrementalBase.trim() || undefined,
       filter,
-    });
+      ...(multiSourceMode
+        ? { sources: [...form.sources] }
+        : { source: form.source.trim() }),
+    };
+
+    const result = await startBackup(payload);
     showMessage(`备份任务已创建，任务编号：${result.taskId}`, "success");
     emit("submitted");
   } catch (error) {
@@ -98,15 +115,19 @@ async function submit() {
 <template>
   <section class="panel">
     <h2>手动备份</h2>
-    <p class="hint">选择源路径（文件或目录）与目标路径，配置归档与加密选项后发起备份任务。</p>
+    <p class="hint">
+      可选择单个文件、多个文件或目录作为源；多文件将合并进同一次备份任务。
+    </p>
     <div class="form-grid">
       <PathPicker
         v-model="form.source"
+        v-model:sources="form.sources"
         class="span-2"
         label="源路径（文件或目录）"
         placeholder="/path/to/source"
         mode="file-or-directory"
         recent-key="source-paths"
+        allow-multiple-files
         :disabled="submitting"
       />
       <PathPicker
@@ -161,11 +182,12 @@ async function submit() {
           <input v-model="form.includeSpecialFiles" type="checkbox" />
           <span>包含特殊文件</span>
         </label>
-        <label class="checkbox">
-          <input v-model="form.incremental" type="checkbox" />
+        <label class="checkbox" :class="{ 'checkbox-disabled': isMultiSourceMode }">
+          <input v-model="form.incremental" type="checkbox" :disabled="isMultiSourceMode || submitting" />
           <span>增量备份</span>
         </label>
       </div>
+      <p v-if="isMultiSourceMode" class="hint span-2">多文件备份模式下已自动禁用增量备份。</p>
 
       <label v-if="form.encrypt" class="field span-2">
         <span>加密密码</span>

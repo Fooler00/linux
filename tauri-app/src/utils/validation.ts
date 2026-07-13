@@ -7,12 +7,14 @@ export interface ValidationResult {
 }
 
 export interface BackupValidationInput {
-  source: string;
+  source?: string;
+  sources?: string[];
   destination: string;
   encrypt: boolean;
   password?: string;
   archiveType?: string;
   encryptAlgo?: string;
+  incremental?: boolean;
 }
 
 export interface RestoreValidationInput {
@@ -30,19 +32,36 @@ export function isSupportedEncryptAlgo(value: string): value is EncryptAlgo {
 }
 
 export function validateBackupForm(input: BackupValidationInput): ValidationResult {
-  const source = input.source.trim();
   const destination = input.destination.trim();
+  const sources = (input.sources ?? []).map((item) => item.trim()).filter(Boolean);
+  const source = input.source?.trim() ?? "";
+  const multiSourceMode = sources.length > 0;
 
-  if (!source) {
-    return invalid("请输入源路径（文件或目录）");
+  if (!multiSourceMode && !source) {
+    return invalid("请输入源路径（文件或目录），或选择多个文件");
   }
 
   if (!destination) {
     return invalid("请输入备份目标目录");
   }
 
-  if (source === destination) {
-    return invalid("源路径和备份目标目录不建议相同，请重新选择");
+  if (multiSourceMode) {
+    if (input.incremental) {
+      return invalid("多文件备份不支持增量模式");
+    }
+
+    const uniqueSources = new Set(sources);
+    if (uniqueSources.size !== sources.length) {
+      return invalid("多文件列表中存在重复路径");
+    }
+
+    if (sources.some((item) => item === destination)) {
+      return invalid("源文件路径不能与备份目标目录相同");
+    }
+  } else {
+    if (source === destination) {
+      return invalid("源路径和备份目标目录不建议相同，请重新选择");
+    }
   }
 
   if (!input.archiveType || !isSupportedArchiveType(input.archiveType)) {

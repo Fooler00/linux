@@ -23,6 +23,81 @@
 
 namespace backup {
 
+namespace {
+
+fs::path absolutePathInBackup(const fs::path &absolutePath)
+{
+    fs::path normalized = absolutePath.lexically_normal();
+    std::string pathStr = normalized.string();
+    if (!pathStr.empty() && pathStr.front() == '/')
+    {
+        pathStr.erase(pathStr.begin());
+    }
+    if (pathStr.empty())
+    {
+        throw std::runtime_error("无法解析源文件路径：" + absolutePath.string());
+    }
+    return fs::path(pathStr);
+}
+
+fs::path finalizeBackup(
+    const fs::path &backupDir,
+    const fs::path &metadataSource,
+    bool compress,
+    bool encrypt,
+    const std::string &password,
+    const BackupFilter &filter,
+    int copiedFiles,
+    const std::map<std::string, std::string> &newHashes,
+    const std::vector<fs::path> &metadataSources = {})
+{
+    writeIncrementalManifest(backupDir, newHashes);
+
+    std::string archiveType = filter.archiveType;
+    if (compress && archiveType == "zip")
+    {
+        archiveType = "zip";
+    }
+
+    writeMetadata(
+        backupDir,
+        metadataSource,
+        archiveType,
+        filter,
+        copiedFiles,
+        archiveType,
+        filter.encryptAlgo,
+        filter.incremental,
+        metadataSources);
+
+    fs::path resultPath = backupDir;
+
+    std::string type = normalizeArchiveType(archiveType);
+    if (type != "none")
+    {
+        resultPath = createArchive(backupDir, type);
+    }
+
+    if (encrypt)
+    {
+        if (password.empty())
+        {
+            throw std::runtime_error("启用加密时密码不能为空");
+        }
+
+        if (fs::is_directory(resultPath))
+        {
+            resultPath = createArchive(resultPath, "tar.gz");
+        }
+
+        resultPath = encryptFile(resultPath, password, filter.encryptAlgo);
+    }
+
+    return resultPath;
+}
+
+} // namespace
+
 void writeMetadata(
     const fs::path &backupDir,
     const fs::path &source,
@@ -31,10 +106,20 @@ void writeMetadata(
     int copiedFiles,
     const std::string &archiveType,
     const std::string &encryptAlgo,
-    bool incremental)
+    bool incremental,
+    const std::vector<fs::path> &sources)
 {
     nlohmann::json meta;
     meta["source"] = source.string();
+    if (!sources.empty())
+    {
+        nlohmann::json sourceList = nlohmann::json::array();
+        for (const auto &item : sources)
+        {
+            sourceList.push_back(item.string());
+        }
+        meta["sources"] = sourceList;
+    }
     meta["backupTime"] = nowString();
     meta["mode"] = mode;
     meta["size"] = directorySize(backupDir);
@@ -193,44 +278,129 @@ fs::path createBackup(
     }
 
     // 始终写入 manifest，使任意备份都可作为后续增量备份的基线
-    writeIncrementalManifest(backupDir, newHashes);
+    return finalizeBackup(
+        backupDir,
+        source,
+        compress,
+        encrypt,
+        password,
+        filter,
+        copiedFiles,
+        newHashes);
+}
 
-    std::string archiveType = filter.archiveType;
-    // 兼容旧字段：compress=true 且 archiveType 默认时使用 zip
-    if (compress && archiveType == "zip")
+fs::path createBackupFromSources(
+    const std::vector<fs::path> &sources,
+    const fs::path &destination,
+    bool compress,
+    bool encrypt,
+    const std::string &password,
+    const BackupFilter &filter)
+{
+    if (sources.empty())
     {
-        archiveType = "zip";
+        throw std::runtime_error("sources 不能为空");
     }
 
-    writeMetadata(backupDir, source, archiveType, filter, copiedFiles, archiveType, filter.encryptAlgo, filter.incremental);
-
-    fs::path resultPath = backupDir;
-
-    // 打包/压缩
-    std::string type = normalizeArchiveType(archiveType);
-    if (type != "none")
+    if (filter.incremental)
     {
-        resultPath = createArchive(backupDir, type);
+        throw std::runtime_error("多文件备份不支持增量模式");
     }
 
-    // 加密
-    if (encrypt)
+    std::vector<fs::path> normalizedSources;
+    normalizedSources.reserve(sources.size());
+
+    for (const auto &src : sources)
     {
-        if (password.empty())
+        fs::path absolutePath = fs::absolute(src);
+        if (!fs::exists(absolutePath))
         {
-            throw std::runtime_error("启用加密时密码不能为空");
+            throw std::runtime_error("源文件不存在：" + absolutePath.string());
         }
 
-        if (fs::is_directory(resultPath))
+        if (!fs::is_regular_file(absolutePath) && !fs::is_symlink(absolutePath))
         {
-            // 目录无法直接加密，先打包再加密
-            resultPath = createArchive(resultPath, "tar.gz");
+            throw std::runtime_error("多文件备份仅支持文件：" + absolutePath.string());
         }
 
-        resultPath = encryptFile(resultPath, password, filter.encryptAlgo);
+        if (std::find(normalizedSources.begin(), normalizedSources.end(), absolutePath) == normalizedSources.end())
+        {
+            normalizedSources.push_back(absolutePath);
+        }
     }
 
-    return resultPath;
+    fs::create_directories(destination);
+
+    fs::path backupDir = destination / ("backup_" + nowString());
+    fs::create_directories(backupDir);
+
+    int copiedFiles = 0;
+    std::map<std::string, std::string> newHashes;
+
+    for (const auto &sourcePath : normalizedSources)
+    {
+        fs::directory_entry entry(sourcePath);
+        if (!fileMatchesFilter(entry, sourcePath.parent_path(), filter))
+        {
+            continue;
+        }
+
+        fs::path relativePath = absolutePathInBackup(sourcePath);
+        fs::path targetPath = backupDir / relativePath;
+        fs::create_directories(targetPath.parent_path());
+
+        FileMetadata meta;
+        bool hasMeta = getFileMetadata(sourcePath, meta);
+
+        bool copied = false;
+        if (entry.is_regular_file())
+        {
+            std::string relStr = relativePath.string();
+            std::string hash = fileContentHash(sourcePath);
+            if (!hash.empty())
+            {
+                newHashes[relStr] = hash;
+            }
+
+            fs::copy_file(sourcePath, targetPath, fs::copy_options::overwrite_existing);
+            copied = true;
+        }
+        else if (entry.is_symlink() && filter.includeSpecialFiles)
+        {
+            std::string reason;
+            copied = createSpecialFile(targetPath, meta, reason);
+            if (!copied)
+            {
+                std::cerr << "[警告] 跳过特殊文件 " << sourcePath << ": " << reason << "\n";
+            }
+        }
+
+        if (copied && filter.preserveMetadata && hasMeta)
+        {
+            applyFileMetadata(targetPath, meta);
+        }
+
+        if (copied)
+        {
+            copiedFiles++;
+        }
+    }
+
+    if (copiedFiles == 0)
+    {
+        throw std::runtime_error("没有符合条件的文件可备份");
+    }
+
+    return finalizeBackup(
+        backupDir,
+        normalizedSources.front(),
+        compress,
+        encrypt,
+        password,
+        filter,
+        copiedFiles,
+        newHashes,
+        normalizedSources);
 }
 
 void restoreBackup(

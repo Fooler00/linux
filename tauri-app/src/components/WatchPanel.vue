@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { startWatch, stopWatch } from "../api/backup";
 import { showMessage } from "../composables/useMessage";
 import PathPicker from "./PathPicker.vue";
+
+const watching = ref(false);
+const busy = ref(false);
 
 const form = reactive({
   source: "",
@@ -11,10 +14,16 @@ const form = reactive({
 });
 
 async function start() {
+  if (watching.value || busy.value) {
+    return;
+  }
+
   if (!form.source.trim() || !form.destination.trim()) {
     showMessage("请输入监听目录和备份目标目录", "error");
     return;
   }
+
+  busy.value = true;
 
   try {
     const result = await startWatch({
@@ -22,18 +31,30 @@ async function start() {
       destination: form.destination.trim(),
       intervalSeconds: Number(form.intervalSeconds) || 10,
     });
+    watching.value = true;
     showMessage(result.message, "success");
   } catch (error) {
     showMessage(error instanceof Error ? error.message : "启动监听失败", "error");
+  } finally {
+    busy.value = false;
   }
 }
 
 async function stop() {
+  if (!watching.value || busy.value) {
+    return;
+  }
+
+  busy.value = true;
+
   try {
     const result = await stopWatch();
+    watching.value = false;
     showMessage(result.message, "success");
   } catch (error) {
     showMessage(error instanceof Error ? error.message : "停止监听失败", "error");
+  } finally {
+    busy.value = false;
   }
 }
 </script>
@@ -70,9 +91,24 @@ async function stop() {
         <input v-model.number="form.intervalSeconds" type="number" min="1" />
       </label>
     </div>
-    <div class="actions">
-      <button type="button" class="primary" @click="start">启动监听</button>
-      <button type="button" class="secondary" @click="stop">停止监听</button>
+    <div class="actions watch-actions">
+      <button
+        type="button"
+        class="primary"
+        :disabled="watching || busy"
+        @click="start"
+      >
+        {{ busy && !watching ? "正在启动..." : "启动监听" }}
+      </button>
+      <button
+        type="button"
+        class="secondary"
+        :class="{ 'watch-stop-active': watching }"
+        :disabled="!watching || busy"
+        @click="stop"
+      >
+        {{ busy && watching ? "正在停止..." : "停止监听" }}
+      </button>
     </div>
   </section>
 </template>

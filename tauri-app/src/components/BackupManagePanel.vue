@@ -192,6 +192,10 @@ function getMetadataBoolean(value: boolean | null | undefined) {
       <h3>元数据：{{ selectedPath }}</h3>
       <dl class="metadata-list">
         <div><dt>源目录</dt><dd>{{ getMetadataText(metadata.source) }}</dd></div>
+        <div v-if="metadata.sources?.length">
+          <dt>源文件列表</dt>
+          <dd>{{ metadata.sources.join(", ") }}</dd>
+        </div>
         <div><dt>备份时间</dt><dd>{{ getMetadataText(metadata.backupTime) }}</dd></div>
         <div><dt>归档类型</dt><dd>{{ getMetadataText(metadata.archiveType) }}</dd></div>
         <div><dt>加密算法</dt><dd>{{ getMetadataText(metadata.encryptAlgo) }}</dd></div>

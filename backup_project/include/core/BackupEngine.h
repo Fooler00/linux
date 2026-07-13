@@ -7,6 +7,8 @@
 
 #include "core/Types.h"
 
+#include <vector>
+
 namespace backup {
 
 namespace fs = std::filesystem;
@@ -20,7 +22,32 @@ void writeMetadata(
     int copiedFiles,
     const std::string &archiveType = "",
     const std::string &encryptAlgo = "",
-    bool incremental = false);
+    bool incremental = false,
+    const std::vector<fs::path> &sources = {});
+
+// 创建备份
+//   source       源路径（文件或目录）
+//   destination  备份存放目录
+//   compress     是否压缩（兼容旧接口，实际由 filter.archiveType 决定）
+//   encrypt      是否加密
+//   password     加密密码
+//   filter       筛选与算法配置
+fs::path createBackup(
+    const fs::path &source,
+    const fs::path &destination,
+    bool compress,
+    bool encrypt,
+    const std::string &password,
+    const BackupFilter &filter);
+
+// 从多个绝对路径创建备份（跨目录多文件，合并为同一次备份）
+fs::path createBackupFromSources(
+    const std::vector<fs::path> &sources,
+    const fs::path &destination,
+    bool compress,
+    bool encrypt,
+    const std::string &password,
+    const BackupFilter &filter);
 
 // 创建备份
 //   source       源路径（文件或目录）

@@ -72,12 +72,18 @@ fs::path createBackup(
 {
     if (!fs::exists(source))
     {
-        throw std::runtime_error("源目录不存在");
+        throw std::runtime_error("源路径不存在");
     }
 
-    if (!fs::is_directory(source))
+    const bool sourceIsDirectory = fs::is_directory(source);
+    if (!sourceIsDirectory && !fs::is_regular_file(source) && !fs::is_symlink(source))
     {
-        throw std::runtime_error("源路径必须是目录");
+        FileMetadata probeMeta;
+        const bool hasMeta = getFileMetadata(source, probeMeta);
+        if (!hasMeta || !(probeMeta.isPipe || probeMeta.isBlockDevice || probeMeta.isCharDevice))
+        {
+            throw std::runtime_error("源路径必须是文件或目录");
+        }
     }
 
     fs::create_directories(destination);
@@ -93,14 +99,14 @@ fs::path createBackup(
         baseHashes = loadIncrementalManifest(filter.incrementalBase);
     }
 
-    for (const auto &entry : fs::recursive_directory_iterator(source))
-    {
-        if (!fileMatchesFilter(entry, source, filter))
+    // 目录与单文件共用同一拷贝逻辑；单文件时以父目录作为筛选相对路径基准。
+    const auto copyEntry = [&](const fs::directory_entry &entry, const fs::path &sourceRoot) {
+        if (!fileMatchesFilter(entry, sourceRoot, filter))
         {
-            continue;
+            return;
         }
 
-        fs::path relativePath = fs::relative(entry.path(), source);
+        fs::path relativePath = fs::relative(entry.path(), sourceRoot);
         fs::path targetPath = backupDir / relativePath;
 
         fs::create_directories(targetPath.parent_path());
@@ -130,7 +136,7 @@ fs::path createBackup(
                     markPath += ".incskip";
                     std::ofstream mk(markPath);
                     mk << "unchanged";
-                    continue;
+                    return;
                 }
             }
 
@@ -172,6 +178,18 @@ fs::path createBackup(
         {
             copiedFiles++;
         }
+    };
+
+    if (sourceIsDirectory)
+    {
+        for (const auto &entry : fs::recursive_directory_iterator(source))
+        {
+            copyEntry(entry, source);
+        }
+    }
+    else
+    {
+        copyEntry(fs::directory_entry(source), source.parent_path());
     }
 
     // 始终写入 manifest，使任意备份都可作为后续增量备份的基线

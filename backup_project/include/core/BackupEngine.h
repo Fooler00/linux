@@ -23,7 +23,7 @@ void writeMetadata(
     bool incremental = false);
 
 // 创建备份
-//   source       源目录
+//   source       源路径（文件或目录）
 //   destination  备份存放目录
 //   compress     是否压缩（兼容旧接口，实际由 filter.archiveType 决定）
 //   encrypt      是否加密

@@ -98,15 +98,15 @@ async function submit() {
 <template>
   <section class="panel">
     <h2>手动备份</h2>
-    <p class="hint">选择源目录与目标路径，配置归档与加密选项后发起备份任务。</p>
+    <p class="hint">选择源路径（文件或目录）与目标路径，配置归档与加密选项后发起备份任务。</p>
     <div class="form-grid">
       <PathPicker
         v-model="form.source"
         class="span-2"
-        label="源目录"
+        label="源路径（文件或目录）"
         placeholder="/path/to/source"
-        mode="directory"
-        recent-key="source-directories"
+        mode="file-or-directory"
+        recent-key="source-paths"
         :disabled="submitting"
       />
       <PathPicker

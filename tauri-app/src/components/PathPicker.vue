@@ -13,7 +13,7 @@ const props = withDefaults(
     label: string;
     placeholder?: string;
     disabled?: boolean;
-    mode: "directory" | "file";
+    mode: "directory" | "file" | "file-or-directory";
     recentKey: string;
   }>(),
   {
@@ -34,13 +34,13 @@ onBeforeUnmount(() => {
   window.removeEventListener(RECENT_EVENT, handleRecentPathsUpdated as EventListener);
 });
 
-async function pickPath() {
+async function pickPath(pickMode: "directory" | "file") {
   if (props.disabled) {
     return;
   }
 
   const selected = await open({
-    directory: props.mode === "directory",
+    directory: pickMode === "directory",
     multiple: false,
   });
 
@@ -125,11 +125,30 @@ function handleRecentPathsUpdated(event: Event) {
         :placeholder="placeholder"
         :disabled="disabled"
       />
+      <template v-if="mode === 'file-or-directory'">
+        <button
+          type="button"
+          class="secondary path-picker-button"
+          :disabled="disabled"
+          @click="pickPath('file')"
+        >
+          选择文件
+        </button>
+        <button
+          type="button"
+          class="secondary path-picker-button"
+          :disabled="disabled"
+          @click="pickPath('directory')"
+        >
+          选择目录
+        </button>
+      </template>
       <button
+        v-else
         type="button"
         class="secondary path-picker-button"
         :disabled="disabled"
-        @click="pickPath"
+        @click="pickPath(mode)"
       >
         选择
       </button>

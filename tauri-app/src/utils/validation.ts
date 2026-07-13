@@ -34,7 +34,7 @@ export function validateBackupForm(input: BackupValidationInput): ValidationResu
   const destination = input.destination.trim();
 
   if (!source) {
-    return invalid("请输入源目录");
+    return invalid("请输入源路径（文件或目录）");
   }
 
   if (!destination) {
@@ -42,7 +42,7 @@ export function validateBackupForm(input: BackupValidationInput): ValidationResu
   }
 
   if (source === destination) {
-    return invalid("源目录和备份目标目录不建议相同，请重新选择");
+    return invalid("源路径和备份目标目录不建议相同，请重新选择");
   }
 
   if (!input.archiveType || !isSupportedArchiveType(input.archiveType)) {

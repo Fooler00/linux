@@ -72,7 +72,10 @@ void applyFileMetadata(const fs::path &path, const FileMetadata &meta)
 {
     chmod(path.c_str(), meta.mode);
     // 仅 root 或具有 CAP_CHOWN 才能成功改变属主；普通用户调用失败可忽略
-    chown(path.c_str(), meta.uid, meta.gid);
+    if (chown(path.c_str(), meta.uid, meta.gid) != 0)
+    {
+        // 忽略权限不足导致的失败
+    }
 
     struct utimbuf times{};
     times.actime = meta.atime;

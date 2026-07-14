@@ -13,11 +13,55 @@
 #include "cloud/CloudConfig.h"
 
 #include <cstdlib>
+#include <cstring>
+#include <cerrno>
+#include <fcntl.h>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <sys/file.h>
+#include <unistd.h>
 
 namespace {
+namespace fs = std::filesystem;
+
+// 单实例文件锁：防止多个 backup_server 进程同时运行导致任务列表跳变
+// 返回值：true=获得锁(唯一实例)，false=已有其他实例在运行
+bool acquireSingleInstanceLock(int port)
+{
+    fs::create_directories("/tmp");
+    // 锁文件按端口命名，不同端口可以共存
+    const std::string lockPath = "/tmp/backup_server_" + std::to_string(port) + ".lock";
+    int fd = open(lockPath.c_str(), O_RDWR | O_CREAT, 0600);
+    if (fd < 0)
+    {
+        std::cerr << "[错误] 无法创建锁文件 " << lockPath << ": " << std::strerror(errno) << "\n";
+        return false;
+    }
+    // 非阻塞排他锁
+    if (flock(fd, LOCK_EX | LOCK_NB) != 0)
+    {
+        if (errno == EWOULDBLOCK)
+        {
+            std::cerr << "[错误] backup_server 已在运行（端口 " << port << "）。\n"
+                      << "       多实例会导致任务列表不一致。如需启动新实例，请先停止旧进程。\n";
+        }
+        else
+        {
+            std::cerr << "[错误] 加锁失败: " << std::strerror(errno) << "\n";
+        }
+        ::close(fd);
+        return false;
+    }
+    // 写入 PID 便于排查
+    const std::string pidStr = std::to_string(static_cast<long>(getpid())) + "\n";
+    if (ftruncate(fd, 0) != 0) { /* 忽略 */ }
+    if (write(fd, pidStr.c_str(), pidStr.size()) < 0) { /* 忽略 */ }
+    // 保持 fd 打开，进程退出时自动释放锁
+    return true;
+}
+
 // 从配置文件加载（可选）
 backup::server::ServerConfig loadServerConfig()
 {
@@ -67,6 +111,12 @@ backup::server::ServerConfig loadServerConfig()
 int main()
 {
     auto cfg = loadServerConfig();
+
+    // BUG-TASK-001：单实例锁，避免多进程导致任务列表在不同历史任务集合间跳变
+    if (!acquireSingleInstanceLock(cfg.port))
+    {
+        return 1;
+    }
 
     // 创建云存储后端：支持 local（单机）与 remote（连接 VM 网盘服务器）
     backup::cloud::CloudConfig cloudCfg;

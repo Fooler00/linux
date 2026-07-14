@@ -6,11 +6,39 @@
 #include "core/Metadata.h"
 #include "core/Utils.h"
 
+#include <fnmatch.h>
 #include <string>
+#include <sys/stat.h>
 
 namespace backup {
 
 namespace {
+
+// 判定 pattern 是否包含通配符（* ? [）
+bool hasWildcard(const std::string &pattern)
+{
+    return pattern.find('*') != std::string::npos ||
+           pattern.find('?') != std::string::npos ||
+           pattern.find('[') != std::string::npos;
+}
+
+// 通配符匹配：若 pattern 不含通配符则退化为子串匹配，向后兼容
+bool patternMatches(const std::string &text, const std::string &pattern)
+{
+    if (pattern.empty())
+    {
+        return true;
+    }
+    if (!hasWildcard(pattern))
+    {
+        // 兼容旧行为：子串包含
+        return text.find(pattern) != std::string::npos;
+    }
+    // 使用 POSIX fnmatch：
+    //  FNM_PATHNAME: * 不匹配 /，避免子目录被无意匹配
+    //  FNM_PERIOD:  以 . 开头的文件名需显式匹配
+    return fnmatch(pattern.c_str(), text.c_str(), FNM_PATHNAME) == 0;
+}
 
 bool containsAnyPathPart(const std::string &path, const std::vector<std::string> &patterns)
 {
@@ -21,7 +49,7 @@ bool containsAnyPathPart(const std::string &path, const std::vector<std::string>
 
     for (const auto &pattern : patterns)
     {
-        if (!pattern.empty() && path.find(pattern) != std::string::npos)
+        if (patternMatches(path, pattern))
         {
             return true;
         }
@@ -34,7 +62,7 @@ bool containsExcludedPathPart(const std::string &path, const std::vector<std::st
 {
     for (const auto &pattern : patterns)
     {
-        if (!pattern.empty() && path.find(pattern) != std::string::npos)
+        if (patternMatches(path, pattern))
         {
             return true;
         }

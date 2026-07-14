@@ -200,7 +200,19 @@ fs::path createBackup(
         bool hasMeta = getFileMetadata(entry.path(), meta);
 
         bool copied = false;
-        if (entry.is_regular_file())
+        // BUG-SPECIAL-001：必须先判断 is_symlink()，因为 is_regular_file() 会跟随符号链接。
+        // 若符号链接指向普通文件，is_regular_file() 返回 true，会错误地走 copy_file
+        // 分支复制文件内容而非保存链接本身。
+        if (entry.is_symlink() && filter.includeSpecialFiles)
+        {
+            std::string reason;
+            copied = createSpecialFile(targetPath, meta, reason);
+            if (!copied)
+            {
+                std::cerr << "[警告] 跳过特殊文件 " << entry.path() << ": " << reason << "\n";
+            }
+        }
+        else if (entry.is_regular_file())
         {
             std::string relStr = relativePath.string();
             // 始终计算内容哈希，写入本次 manifest（任何备份都可作为后续增量的基线）
@@ -227,15 +239,6 @@ fs::path createBackup(
 
             fs::copy_file(entry.path(), targetPath, fs::copy_options::overwrite_existing);
             copied = true;
-        }
-        else if (entry.is_symlink() && filter.includeSpecialFiles)
-        {
-            std::string reason;
-            copied = createSpecialFile(targetPath, meta, reason);
-            if (!copied)
-            {
-                std::cerr << "[警告] 跳过特殊文件 " << entry.path() << ": " << reason << "\n";
-            }
         }
         else if (hasMeta && filter.includeSpecialFiles &&
                  (meta.isPipe || meta.isBlockDevice || meta.isCharDevice))
@@ -353,7 +356,17 @@ fs::path createBackupFromSources(
         bool hasMeta = getFileMetadata(sourcePath, meta);
 
         bool copied = false;
-        if (entry.is_regular_file())
+        // BUG-SPECIAL-001：必须先判断 is_symlink()，因为 is_regular_file() 会跟随符号链接。
+        if (entry.is_symlink() && filter.includeSpecialFiles)
+        {
+            std::string reason;
+            copied = createSpecialFile(targetPath, meta, reason);
+            if (!copied)
+            {
+                std::cerr << "[警告] 跳过特殊文件 " << sourcePath << ": " << reason << "\n";
+            }
+        }
+        else if (entry.is_regular_file())
         {
             std::string relStr = relativePath.string();
             std::string hash = fileContentHash(sourcePath);
@@ -364,15 +377,6 @@ fs::path createBackupFromSources(
 
             fs::copy_file(sourcePath, targetPath, fs::copy_options::overwrite_existing);
             copied = true;
-        }
-        else if (entry.is_symlink() && filter.includeSpecialFiles)
-        {
-            std::string reason;
-            copied = createSpecialFile(targetPath, meta, reason);
-            if (!copied)
-            {
-                std::cerr << "[警告] 跳过特殊文件 " << sourcePath << ": " << reason << "\n";
-            }
         }
 
         if (copied && filter.preserveMetadata && hasMeta)

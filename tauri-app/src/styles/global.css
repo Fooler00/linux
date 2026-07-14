@@ -6,8 +6,8 @@
 
 /* 设计令牌：亮色/暗色通过 prefers-color-scheme 自动切换，适配 Tauri 系统主题 */
 :root {
-  --font-sans: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  --font-sans: Inter,"Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",sans-serif;
+  --font-mono: ui-monospace,"SF Mono",SFMono-Regular,Menlo,"Noto Sans Mono CJK SC","Source Han Mono SC",monospace;
 
   --bg-base: #f4f5f6;
   --bg-surface: #ffffff;

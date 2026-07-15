@@ -192,7 +192,10 @@ fs::path createBackup(
             return;
         }
  
-        fs::path relativePath = fs::relative(entry.path(), sourceRoot);
+        // 用 lexically_relative 而非 fs::relative：后者会调用 weakly_canonical
+        // 跟随符号链接，导致符号链接文件被解析成其目标，相对路径计算错误
+        // （如 link.txt -> a.txt 会被误算成 a.txt 的相对路径）。
+        fs::path relativePath = entry.path().lexically_relative(sourceRoot);
         fs::path targetPath = backupDir / relativePath;
  
         fs::create_directories(targetPath.parent_path());

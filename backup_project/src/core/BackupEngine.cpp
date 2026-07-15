@@ -155,13 +155,19 @@ fs::path createBackup(
     const std::string &password,
     const BackupFilter &filter)
 {
-    if (!fs::exists(source))
+    // 用 symlink_status 判断存在性，避免断链软链接被误判为不存在（fs::exists 会跟随符号链接）
+    std::error_code existEc;
+    auto sourceSt = fs::symlink_status(source, existEc);
+    if (existEc || !fs::status_known(sourceSt))
     {
         throw std::runtime_error("源路径不存在");
     }
- 
-    const bool sourceIsDirectory = fs::is_directory(source);
-    if (!sourceIsDirectory && !fs::is_regular_file(source) && !fs::is_symlink(source))
+
+    // is_directory/is_regular_file 用 symlink_status 判断，不跟随符号链接
+    const bool sourceIsSymlink = fs::is_symlink(sourceSt);
+    const bool sourceIsDirectory = fs::is_directory(sourceSt);
+    const bool sourceIsRegular = fs::is_regular_file(sourceSt);
+    if (!sourceIsDirectory && !sourceIsRegular && !sourceIsSymlink)
     {
         FileMetadata probeMeta;
         const bool hasMeta = getFileMetadata(source, probeMeta);
@@ -343,12 +349,16 @@ fs::path createBackupFromSources(
     for (const auto &src : sources)
     {
         fs::path absolutePath = fs::absolute(src);
-        if (!fs::exists(absolutePath))
+        // 用 symlink_status 判断存在性，避免断链软链接被误判为不存在
+        std::error_code srcEc;
+        auto srcSt = fs::symlink_status(absolutePath, srcEc);
+        if (srcEc || !fs::status_known(srcSt))
         {
             throw std::runtime_error("源文件不存在：" + absolutePath.string());
         }
- 
-        if (!fs::is_regular_file(absolutePath) && !fs::is_symlink(absolutePath))
+
+        // 用 symlink_status 判断类型，不跟随符号链接
+        if (!fs::is_regular_file(srcSt) && !fs::is_symlink(srcSt))
         {
             // 允许管道/块设备/字符设备作为源（与 createBackup 单源行为一致）
             FileMetadata probeMeta;

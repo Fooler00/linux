@@ -4,3 +4,13 @@ backup_project/build/
 backup_project/cloud_storage/
 tauri-app/src-tauri/bin/backup_server-*
 tauri-app/src-tauri/users.db
+Test/build/
+Test/output/*
+!Test/output/.gitignore
+Test/**/*.log
+Test/**/*.db
+Test/**/*.sqlite
+Test/**/*.sqlite3
+Test/**/*.pid
+Test/**/tmp/
+Test/**/screenshots/

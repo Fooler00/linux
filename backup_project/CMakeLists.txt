@@ -54,3 +54,11 @@ target_link_libraries(backup_server PRIVATE backup_cloud backup_core)
 # ===== 本地前端示例（CLI，直接调用核心库，不依赖 HTTP）=====
 add_executable(backup_cli src/cli.cpp)
 target_link_libraries(backup_cli PRIVATE backup_core)
+
+include(CTest)
+if(BUILD_TESTING)
+    add_subdirectory(
+        "${CMAKE_CURRENT_LIST_DIR}/../Test"
+        "${CMAKE_BINARY_DIR}/Test"
+    )
+endif()

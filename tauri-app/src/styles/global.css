@@ -244,53 +244,65 @@ body {
   max-width: 960px;
 }
 
-/* ── 全局消息条：克制色彩 + 微动效 ── */
-.message-bar {
-  margin: 0 28px 0;
-  padding: 10px 14px;
+/* ── 右上角浮层 Toast：不挤占内容区布局 ── */
+.toast-host {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   font-size: 0.875rem;
+  line-height: 1.45;
   cursor: pointer;
+  box-shadow: var(--shadow-md);
   transition: var(--transition);
-  animation: slide-down 0.3s ease;
+  animation: toast-enter 0.28s ease;
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
-.main-area > .message-bar {
-  margin-top: 16px;
-}
-
-.message-bar:hover {
+.toast:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-hover);
 }
 
-.message-bar.success {
+.toast.success {
   background: var(--success-bg);
   border-color: var(--success-border);
   color: var(--success);
 }
 
-.message-bar.error {
+.toast.error {
   background: var(--error-bg);
   border-color: var(--error-border);
   color: var(--error);
 }
 
-.message-bar.info {
+.toast.info {
   background: var(--running-bg);
   border-color: var(--running-border);
   color: var(--running);
 }
 
-@keyframes slide-down {
+@keyframes toast-enter {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateX(12px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
   }
 }
 

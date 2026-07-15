@@ -20,11 +20,13 @@
 #include <map>
 #include <sstream>
 #include <stdexcept>
- 
+#include <utility>
+#include <vector>
+
 namespace backup {
- 
+
 namespace {
- 
+
 fs::path absolutePathInBackup(const fs::path &absolutePath)
 {
     fs::path normalized = absolutePath.lexically_normal();
@@ -38,6 +40,35 @@ fs::path absolutePathInBackup(const fs::path &absolutePath)
         throw std::runtime_error("无法解析源文件路径：" + absolutePath.string());
     }
     return fs::path(pathStr);
+}
+
+void recordSpecialFileFailure(
+    std::vector<std::pair<std::string, std::string>> &failedSpecials,
+    const fs::path &path,
+    const std::string &reason)
+{
+    std::cerr << "[警告] 跳过特殊文件 " << path << ": " << reason << "\n";
+    failedSpecials.emplace_back(path.string(), reason);
+}
+
+void throwIfSpecialFileFailures(const std::vector<std::pair<std::string, std::string>> &failedSpecials)
+{
+    if (failedSpecials.empty())
+    {
+        return;
+    }
+
+    std::ostringstream oss;
+    oss << "特殊文件备份失败：";
+    for (size_t i = 0; i < failedSpecials.size(); ++i)
+    {
+        if (i > 0)
+        {
+            oss << "；";
+        }
+        oss << failedSpecials[i].first << "（" << failedSpecials[i].second << "）";
+    }
+    throw std::runtime_error(oss.str());
 }
  
 fs::path finalizeBackup(
@@ -180,29 +211,30 @@ fs::path createBackup(
     std::map<std::string, std::string> newHashes;
     std::map<std::string, std::string> baseHashes;
     std::map<ino_t, fs::path> seenInodes; // inode → 已备份路径，用于硬链接重建
+    std::vector<std::pair<std::string, std::string>> failedSpecials;
     if (filter.incremental)
     {
         baseHashes = loadIncrementalManifest(filter.incrementalBase);
     }
- 
+
     // 目录与单文件共用同一拷贝逻辑；单文件时以父目录作为筛选相对路径基准。
     const auto copyEntry = [&](const fs::directory_entry &entry, const fs::path &sourceRoot) {
         if (!fileMatchesFilter(entry, sourceRoot, filter))
         {
             return;
         }
- 
+
         // 用 lexically_relative 而非 fs::relative：后者会调用 weakly_canonical
         // 跟随符号链接，导致符号链接文件被解析成其目标，相对路径计算错误
         // （如 link.txt -> a.txt 会被误算成 a.txt 的相对路径）。
         fs::path relativePath = entry.path().lexically_relative(sourceRoot);
         fs::path targetPath = backupDir / relativePath;
- 
+
         fs::create_directories(targetPath.parent_path());
- 
+
         FileMetadata meta;
         bool hasMeta = getFileMetadata(entry.path(), meta);
- 
+
         bool copied = false;
         // BUG-SPECIAL-001：必须先判断 is_symlink()，因为 is_regular_file() 会跟随符号链接。
         // 若符号链接指向普通文件，is_regular_file() 返回 true，会错误地走 copy_file
@@ -213,7 +245,7 @@ fs::path createBackup(
             copied = createSpecialFile(targetPath, meta, reason);
             if (!copied)
             {
-                std::cerr << "[警告] 跳过特殊文件 " << entry.path() << ": " << reason << "\n";
+                recordSpecialFileFailure(failedSpecials, entry.path(), reason);
             }
         }
         else if (entry.is_regular_file())
@@ -225,7 +257,7 @@ fs::path createBackup(
             {
                 newHashes[relStr] = hash;
             }
- 
+
             // 增量备份：内容哈希未变则跳过实际拷贝
             if (filter.incremental)
             {
@@ -240,7 +272,7 @@ fs::path createBackup(
                     return;
                 }
             }
- 
+
             // 硬链接检测：同一 inode 已备份过则创建硬链接，节省空间并保留链接关系
             bool hardlinked = false;
             if (meta.nlink > 1 && meta.inode != 0)
@@ -256,7 +288,7 @@ fs::path createBackup(
                     }
                 }
             }
- 
+
             if (!hardlinked)
             {
                 fs::copy_file(entry.path(), targetPath, fs::copy_options::overwrite_existing);
@@ -274,7 +306,7 @@ fs::path createBackup(
             copied = createSpecialFile(targetPath, meta, reason);
             if (!copied)
             {
-                std::cerr << "[警告] 跳过特殊文件 " << entry.path() << ": " << reason << "\n";
+                recordSpecialFileFailure(failedSpecials, entry.path(), reason);
             }
         }
         else if (fs::is_directory(entry.path()))
@@ -282,19 +314,19 @@ fs::path createBackup(
             fs::create_directories(targetPath);
             copied = true;
         }
- 
+
         // 元数据保留
         if (copied && filter.preserveMetadata && hasMeta)
         {
             applyFileMetadata(targetPath, meta);
         }
- 
+
         if (copied)
         {
             copiedFiles++;
         }
     };
- 
+
     if (sourceIsDirectory)
     {
         for (const auto &entry : fs::recursive_directory_iterator(source))
@@ -306,7 +338,10 @@ fs::path createBackup(
     {
         copyEntry(fs::directory_entry(source), source.parent_path());
     }
- 
+
+    // 特殊文件未能写入时整体失败，供任务状态与前端 Toast 报错
+    throwIfSpecialFileFailures(failedSpecials);
+
     // 始终写入 manifest，使任意备份都可作为后续增量备份的基线
     return finalizeBackup(
         backupDir,
@@ -374,7 +409,8 @@ fs::path createBackupFromSources(
     int copiedFiles = 0;
     std::map<std::string, std::string> newHashes;
     std::map<ino_t, fs::path> seenInodes; // inode → 已备份路径，用于硬链接重建
- 
+    std::vector<std::pair<std::string, std::string>> failedSpecials;
+
     for (const auto &sourcePath : normalizedSources)
     {
         fs::directory_entry entry(sourcePath);
@@ -382,14 +418,14 @@ fs::path createBackupFromSources(
         {
             continue;
         }
- 
+
         fs::path relativePath = absolutePathInBackup(sourcePath);
         fs::path targetPath = backupDir / relativePath;
         fs::create_directories(targetPath.parent_path());
- 
+
         FileMetadata meta;
         bool hasMeta = getFileMetadata(sourcePath, meta);
- 
+
         bool copied = false;
         // BUG-SPECIAL-001：必须先判断 is_symlink()，因为 is_regular_file() 会跟随符号链接。
         if (entry.is_symlink() && filter.includeSpecialFiles)
@@ -398,7 +434,7 @@ fs::path createBackupFromSources(
             copied = createSpecialFile(targetPath, meta, reason);
             if (!copied)
             {
-                std::cerr << "[警告] 跳过特殊文件 " << sourcePath << ": " << reason << "\n";
+                recordSpecialFileFailure(failedSpecials, sourcePath, reason);
             }
         }
         else if (entry.is_regular_file())
@@ -409,7 +445,7 @@ fs::path createBackupFromSources(
             {
                 newHashes[relStr] = hash;
             }
- 
+
             // 硬链接检测：同一 inode 已备份过则创建硬链接
             bool hardlinked = false;
             if (meta.nlink > 1 && meta.inode != 0)
@@ -425,7 +461,7 @@ fs::path createBackupFromSources(
                     }
                 }
             }
- 
+
             if (!hardlinked)
             {
                 fs::copy_file(sourcePath, targetPath, fs::copy_options::overwrite_existing);
@@ -444,26 +480,28 @@ fs::path createBackupFromSources(
             copied = createSpecialFile(targetPath, meta, reason);
             if (!copied)
             {
-                std::cerr << "[警告] 跳过特殊文件 " << sourcePath << ": " << reason << "\n";
+                recordSpecialFileFailure(failedSpecials, sourcePath, reason);
             }
         }
- 
+
         if (copied && filter.preserveMetadata && hasMeta)
         {
             applyFileMetadata(targetPath, meta);
         }
- 
+
         if (copied)
         {
             copiedFiles++;
         }
     }
- 
+
+    throwIfSpecialFileFailures(failedSpecials);
+
     if (copiedFiles == 0)
     {
         throw std::runtime_error("没有符合条件的文件可备份");
     }
- 
+
     return finalizeBackup(
         backupDir,
         normalizedSources.front(),

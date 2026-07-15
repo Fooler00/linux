@@ -1,29 +1,30 @@
 #pragma once
-
+ 
 // =====================================================================
 //  Types.h - 核心数据类型定义
 //  整个备份系统的公共数据结构，被 core / cloud / server 各层共享
 // =====================================================================
-
+ 
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
 #include <limits>
 #include <string>
+#include <sys/types.h>
 #include <vector>
-
+ 
 namespace backup {
-
+ 
 // 文件系统命名空间别名（全工程统一使用 fs::）
 namespace fs = std::filesystem;
-
+ 
 // ---------------- 用户 ----------------
 struct User
 {
     int id = 0;
     std::string username;
 };
-
+ 
 // ---------------- 任务 ----------------
 struct Task
 {
@@ -37,7 +38,7 @@ struct Task
     std::string message;
     std::string createdAt;
 };
-
+ 
 // ---------------- 文件元数据 ----------------
 // 属主/属组/权限/时间/类型/链接目标，用于元数据保留与特殊文件支持
 struct FileMetadata
@@ -55,9 +56,11 @@ struct FileMetadata
     bool isBlockDevice = false;
     bool isCharDevice = false;
     bool isSocket = false;
-    dev_t rdev = 0; // 设备文件主从设备号
+    dev_t rdev = 0;       // 设备文件主从设备号
+    ino_t inode = 0;      // inode 号，用于硬链接识别
+    nlink_t nlink = 0;    // 硬链接计数（>1 表示存在硬链接）
 };
-
+ 
 // ---------------- 备份过滤条件 ----------------
 // 支持按路径/类型/名字/时间/尺寸/用户筛选
 struct BackupFilter
@@ -72,26 +75,26 @@ struct BackupFilter
     fs::file_time_type modifiedBefore = fs::file_time_type::max();
     int userId = 0;
     std::string username;
-
+ 
     // 用户筛选（按文件属主 uid/gid/名称）
     int filterUid = -1;          // -1 表示不筛选
     int filterGid = -1;
     std::string filterOwnerName;
     std::string filterGroupName;
-
+ 
     // 元数据/特殊文件开关
     bool preserveMetadata = true;
     bool includeSpecialFiles = true;
-
+ 
     // 归档与加密算法
     std::string archiveType = "zip";   // none | zip | tar | tar.gz
     std::string encryptAlgo = "aes-256-cbc";
-
+ 
     // 增量备份
     bool incremental = false;
     std::string incrementalBase;       // 上一次完整备份目录路径
 };
-
+ 
 // ---------------- 定时备份调度配置（含数据淘汰策略）----------------
 struct ScheduleConfig
 {
@@ -107,5 +110,5 @@ struct ScheduleConfig
     BackupFilter filter;
     User user;
 };
-
+ 
 } // namespace backup

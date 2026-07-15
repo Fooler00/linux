@@ -1,9 +1,9 @@
 // =====================================================================
 //  Metadata.cpp - 文件元数据采集/恢复 + 特殊文件支持实现
 // =====================================================================
-
+ 
 #include "core/Metadata.h"
-
+ 
 #include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
@@ -12,12 +12,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <utime.h>
-
+ 
 #include <filesystem>
+#include <functional>
 #include <iostream>
-
+#include <map>
+ 
 namespace backup {
-
+ 
 bool getFileMetadata(const fs::path &path, FileMetadata &meta)
 {
     struct stat st{};
@@ -25,14 +27,16 @@ bool getFileMetadata(const fs::path &path, FileMetadata &meta)
     {
         return false;
     }
-
+ 
     meta.mode = st.st_mode;
     meta.uid = st.st_uid;
     meta.gid = st.st_gid;
     meta.mtime = st.st_mtime;
     meta.atime = st.st_atime;
     meta.rdev = st.st_rdev;
-
+    meta.inode = st.st_ino;
+    meta.nlink = st.st_nlink;
+ 
     if (S_ISLNK(st.st_mode))
     {
         meta.isSymlink = true;
@@ -55,7 +59,7 @@ bool getFileMetadata(const fs::path &path, FileMetadata &meta)
     {
         meta.isSocket = true;
     }
-
+ 
     if (auto *pw = getpwuid(st.st_uid))
     {
         meta.ownerName = pw->pw_name;
@@ -64,10 +68,10 @@ bool getFileMetadata(const fs::path &path, FileMetadata &meta)
     {
         meta.groupName = gr->gr_name;
     }
-
+ 
     return true;
 }
-
+ 
 void applyFileMetadata(const fs::path &path, const FileMetadata &meta)
 {
     chmod(path.c_str(), meta.mode);
@@ -76,17 +80,17 @@ void applyFileMetadata(const fs::path &path, const FileMetadata &meta)
     {
         // 忽略权限不足导致的失败
     }
-
+ 
     struct utimbuf times{};
     times.actime = meta.atime;
     times.modtime = meta.mtime;
     utime(path.c_str(), &times);
 }
-
+ 
 bool createSpecialFile(const fs::path &dst, const FileMetadata &meta, std::string &reason)
 {
     fs::create_directories(dst.parent_path());
-
+ 
     if (meta.isSymlink)
     {
         std::error_code ec;
@@ -99,7 +103,7 @@ bool createSpecialFile(const fs::path &dst, const FileMetadata &meta, std::strin
         }
         return true;
     }
-
+ 
     if (meta.isPipe)
     {
         if (mkfifo(dst.c_str(), meta.mode) != 0)
@@ -109,7 +113,7 @@ bool createSpecialFile(const fs::path &dst, const FileMetadata &meta, std::strin
         }
         return true;
     }
-
+ 
     if (meta.isBlockDevice || meta.isCharDevice)
     {
         if (mknod(dst.c_str(), meta.mode, meta.rdev) != 0)
@@ -119,55 +123,86 @@ bool createSpecialFile(const fs::path &dst, const FileMetadata &meta, std::strin
         }
         return true;
     }
-
+ 
     if (meta.isSocket)
     {
         reason = "套接字无法备份";
         return false;
     }
-
+ 
     reason = "未知特殊文件类型";
     return false;
 }
-
+ 
 void copyTreeWithSpecial(const fs::path &src, const fs::path &dst)
 {
-    fs::create_directories(dst);
-
-    for (const auto &entry : fs::directory_iterator(src))
-    {
-        fs::path target = dst / entry.path().filename();
-
-        FileMetadata meta;
-        bool hasMeta = getFileMetadata(entry.path(), meta);
-
-        if (fs::is_directory(entry.path()))
-        {
-            copyTreeWithSpecial(entry.path(), target);
-        }
-        else if (entry.is_symlink())
-        {
-            std::string reason;
-            createSpecialFile(target, meta, reason);
-        }
-        else if (hasMeta && (meta.isPipe || meta.isBlockDevice || meta.isCharDevice))
-        {
-            std::string reason;
-            if (!createSpecialFile(target, meta, reason))
+    // inode → 已还原路径，用于硬链接重建
+    std::map<ino_t, fs::path> seenInodes;
+ 
+    std::function<void(const fs::path &, const fs::path &)> impl =
+        [&](const fs::path &s, const fs::path &d) {
+            fs::create_directories(d);
+ 
+            for (const auto &entry : fs::directory_iterator(s))
             {
-                std::cerr << "[警告] 还原时跳过特殊文件 " << entry.path() << ": " << reason << "\n";
+                fs::path target = d / entry.path().filename();
+ 
+                FileMetadata meta;
+                bool hasMeta = getFileMetadata(entry.path(), meta);
+ 
+                if (fs::is_directory(entry.path()))
+                {
+                    impl(entry.path(), target);
+                }
+                else if (entry.is_symlink())
+                {
+                    std::string reason;
+                    createSpecialFile(target, meta, reason);
+                }
+                else if (hasMeta && (meta.isPipe || meta.isBlockDevice || meta.isCharDevice))
+                {
+                    std::string reason;
+                    if (!createSpecialFile(target, meta, reason))
+                    {
+                        std::cerr << "[警告] 还原时跳过特殊文件 " << entry.path() << ": " << reason << "\n";
+                    }
+                }
+                else if (entry.is_regular_file())
+                {
+                    // 硬链接检测：同一 inode 已还原过则创建硬链接
+                    bool hardlinked = false;
+                    if (meta.nlink > 1 && meta.inode != 0)
+                    {
+                        auto it = seenInodes.find(meta.inode);
+                        if (it != seenInodes.end())
+                        {
+                            std::error_code ec;
+                            fs::create_hard_link(it->second, target, ec);
+                            if (!ec)
+                            {
+                                hardlinked = true;
+                            }
+                        }
+                    }
+ 
+                    if (!hardlinked)
+                    {
+                        fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing);
+                        if (meta.nlink > 1 && meta.inode != 0)
+                        {
+                            seenInodes[meta.inode] = target;
+                        }
+                    }
+                }
+ 
+                if (hasMeta)
+                {
+                    applyFileMetadata(target, meta);
+                }
             }
-        }
-        else if (entry.is_regular_file())
-        {
-            fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing);
-        }
-
-        if (hasMeta)
-        {
-            applyFileMetadata(target, meta);
-        }
-    }
+        };
+ 
+    impl(src, dst);
 }
-
+ 
 } // namespace backup

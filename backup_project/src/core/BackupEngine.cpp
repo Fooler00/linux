@@ -1,7 +1,7 @@
 // =====================================================================
 //  BackupEngine.cpp - 备份引擎实现
 // =====================================================================
-
+ 
 #include "core/BackupEngine.h"
 #include "core/Archive.h"
 #include "core/Crypto.h"
@@ -9,9 +9,9 @@
 #include "core/Incremental.h"
 #include "core/Metadata.h"
 #include "core/Utils.h"
-
+ 
 #include <nlohmann/json.hpp>
-
+ 
 #include <algorithm>
 #include <ctime>
 #include <fstream>
@@ -20,11 +20,11 @@
 #include <map>
 #include <sstream>
 #include <stdexcept>
-
+ 
 namespace backup {
-
+ 
 namespace {
-
+ 
 fs::path absolutePathInBackup(const fs::path &absolutePath)
 {
     fs::path normalized = absolutePath.lexically_normal();
@@ -39,7 +39,7 @@ fs::path absolutePathInBackup(const fs::path &absolutePath)
     }
     return fs::path(pathStr);
 }
-
+ 
 fs::path finalizeBackup(
     const fs::path &backupDir,
     const fs::path &metadataSource,
@@ -52,13 +52,13 @@ fs::path finalizeBackup(
     const std::vector<fs::path> &metadataSources = {})
 {
     writeIncrementalManifest(backupDir, newHashes);
-
+ 
     std::string archiveType = filter.archiveType;
     if (compress && archiveType == "zip")
     {
         archiveType = "zip";
     }
-
+ 
     writeMetadata(
         backupDir,
         metadataSource,
@@ -69,35 +69,35 @@ fs::path finalizeBackup(
         filter.encryptAlgo,
         filter.incremental,
         metadataSources);
-
+ 
     fs::path resultPath = backupDir;
-
+ 
     std::string type = normalizeArchiveType(archiveType);
     if (type != "none")
     {
         resultPath = createArchive(backupDir, type);
     }
-
+ 
     if (encrypt)
     {
         if (password.empty())
         {
             throw std::runtime_error("启用加密时密码不能为空");
         }
-
+ 
         if (fs::is_directory(resultPath))
         {
             resultPath = createArchive(resultPath, "tar.gz");
         }
-
+ 
         resultPath = encryptFile(resultPath, password, filter.encryptAlgo);
     }
-
+ 
     return resultPath;
 }
-
+ 
 } // namespace
-
+ 
 void writeMetadata(
     const fs::path &backupDir,
     const fs::path &source,
@@ -142,11 +142,11 @@ void writeMetadata(
         {"gid", filter.filterGid},
         {"owner", filter.filterOwnerName},
         {"group", filter.filterGroupName}};
-
+ 
     std::ofstream out(backupDir / "metadata.json");
     out << meta.dump(4);
 }
-
+ 
 fs::path createBackup(
     const fs::path &source,
     const fs::path &destination,
@@ -159,7 +159,7 @@ fs::path createBackup(
     {
         throw std::runtime_error("源路径不存在");
     }
-
+ 
     const bool sourceIsDirectory = fs::is_directory(source);
     if (!sourceIsDirectory && !fs::is_regular_file(source) && !fs::is_symlink(source))
     {
@@ -170,35 +170,36 @@ fs::path createBackup(
             throw std::runtime_error("源路径必须是文件或目录");
         }
     }
-
+ 
     fs::create_directories(destination);
-
+ 
     fs::path backupDir = destination / ("backup_" + nowString());
     fs::create_directories(backupDir);
-
+ 
     int copiedFiles = 0;
     std::map<std::string, std::string> newHashes;
     std::map<std::string, std::string> baseHashes;
+    std::map<ino_t, fs::path> seenInodes; // inode → 已备份路径，用于硬链接重建
     if (filter.incremental)
     {
         baseHashes = loadIncrementalManifest(filter.incrementalBase);
     }
-
+ 
     // 目录与单文件共用同一拷贝逻辑；单文件时以父目录作为筛选相对路径基准。
     const auto copyEntry = [&](const fs::directory_entry &entry, const fs::path &sourceRoot) {
         if (!fileMatchesFilter(entry, sourceRoot, filter))
         {
             return;
         }
-
+ 
         fs::path relativePath = fs::relative(entry.path(), sourceRoot);
         fs::path targetPath = backupDir / relativePath;
-
+ 
         fs::create_directories(targetPath.parent_path());
-
+ 
         FileMetadata meta;
         bool hasMeta = getFileMetadata(entry.path(), meta);
-
+ 
         bool copied = false;
         // BUG-SPECIAL-001：必须先判断 is_symlink()，因为 is_regular_file() 会跟随符号链接。
         // 若符号链接指向普通文件，is_regular_file() 返回 true，会错误地走 copy_file
@@ -221,7 +222,7 @@ fs::path createBackup(
             {
                 newHashes[relStr] = hash;
             }
-
+ 
             // 增量备份：内容哈希未变则跳过实际拷贝
             if (filter.incremental)
             {
@@ -236,8 +237,31 @@ fs::path createBackup(
                     return;
                 }
             }
-
-            fs::copy_file(entry.path(), targetPath, fs::copy_options::overwrite_existing);
+ 
+            // 硬链接检测：同一 inode 已备份过则创建硬链接，节省空间并保留链接关系
+            bool hardlinked = false;
+            if (meta.nlink > 1 && meta.inode != 0)
+            {
+                auto it = seenInodes.find(meta.inode);
+                if (it != seenInodes.end())
+                {
+                    std::error_code ec;
+                    fs::create_hard_link(it->second, targetPath, ec);
+                    if (!ec)
+                    {
+                        hardlinked = true;
+                    }
+                }
+            }
+ 
+            if (!hardlinked)
+            {
+                fs::copy_file(entry.path(), targetPath, fs::copy_options::overwrite_existing);
+                if (meta.nlink > 1 && meta.inode != 0)
+                {
+                    seenInodes[meta.inode] = targetPath;
+                }
+            }
             copied = true;
         }
         else if (hasMeta && filter.includeSpecialFiles &&
@@ -255,19 +279,19 @@ fs::path createBackup(
             fs::create_directories(targetPath);
             copied = true;
         }
-
+ 
         // 元数据保留
         if (copied && filter.preserveMetadata && hasMeta)
         {
             applyFileMetadata(targetPath, meta);
         }
-
+ 
         if (copied)
         {
             copiedFiles++;
         }
     };
-
+ 
     if (sourceIsDirectory)
     {
         for (const auto &entry : fs::recursive_directory_iterator(source))
@@ -279,7 +303,7 @@ fs::path createBackup(
     {
         copyEntry(fs::directory_entry(source), source.parent_path());
     }
-
+ 
     // 始终写入 manifest，使任意备份都可作为后续增量备份的基线
     return finalizeBackup(
         backupDir,
@@ -291,7 +315,7 @@ fs::path createBackup(
         copiedFiles,
         newHashes);
 }
-
+ 
 fs::path createBackupFromSources(
     const std::vector<fs::path> &sources,
     const fs::path &destination,
@@ -304,15 +328,15 @@ fs::path createBackupFromSources(
     {
         throw std::runtime_error("sources 不能为空");
     }
-
+ 
     if (filter.incremental)
     {
         throw std::runtime_error("多文件备份不支持增量模式");
     }
-
+ 
     std::vector<fs::path> normalizedSources;
     normalizedSources.reserve(sources.size());
-
+ 
     for (const auto &src : sources)
     {
         fs::path absolutePath = fs::absolute(src);
@@ -320,26 +344,34 @@ fs::path createBackupFromSources(
         {
             throw std::runtime_error("源文件不存在：" + absolutePath.string());
         }
-
+ 
         if (!fs::is_regular_file(absolutePath) && !fs::is_symlink(absolutePath))
         {
-            throw std::runtime_error("多文件备份仅支持文件：" + absolutePath.string());
+            // 允许管道/块设备/字符设备作为源（与 createBackup 单源行为一致）
+            FileMetadata probeMeta;
+            const bool probeOk = getFileMetadata(absolutePath, probeMeta);
+            if (!probeOk ||
+                !(probeMeta.isPipe || probeMeta.isBlockDevice || probeMeta.isCharDevice))
+            {
+                throw std::runtime_error("多文件备份仅支持文件或特殊文件：" + absolutePath.string());
+            }
         }
-
+ 
         if (std::find(normalizedSources.begin(), normalizedSources.end(), absolutePath) == normalizedSources.end())
         {
             normalizedSources.push_back(absolutePath);
         }
     }
-
+ 
     fs::create_directories(destination);
-
+ 
     fs::path backupDir = destination / ("backup_" + nowString());
     fs::create_directories(backupDir);
-
+ 
     int copiedFiles = 0;
     std::map<std::string, std::string> newHashes;
-
+    std::map<ino_t, fs::path> seenInodes; // inode → 已备份路径，用于硬链接重建
+ 
     for (const auto &sourcePath : normalizedSources)
     {
         fs::directory_entry entry(sourcePath);
@@ -347,14 +379,14 @@ fs::path createBackupFromSources(
         {
             continue;
         }
-
+ 
         fs::path relativePath = absolutePathInBackup(sourcePath);
         fs::path targetPath = backupDir / relativePath;
         fs::create_directories(targetPath.parent_path());
-
+ 
         FileMetadata meta;
         bool hasMeta = getFileMetadata(sourcePath, meta);
-
+ 
         bool copied = false;
         // BUG-SPECIAL-001：必须先判断 is_symlink()，因为 is_regular_file() 会跟随符号链接。
         if (entry.is_symlink() && filter.includeSpecialFiles)
@@ -374,27 +406,61 @@ fs::path createBackupFromSources(
             {
                 newHashes[relStr] = hash;
             }
-
-            fs::copy_file(sourcePath, targetPath, fs::copy_options::overwrite_existing);
+ 
+            // 硬链接检测：同一 inode 已备份过则创建硬链接
+            bool hardlinked = false;
+            if (meta.nlink > 1 && meta.inode != 0)
+            {
+                auto it = seenInodes.find(meta.inode);
+                if (it != seenInodes.end())
+                {
+                    std::error_code ec;
+                    fs::create_hard_link(it->second, targetPath, ec);
+                    if (!ec)
+                    {
+                        hardlinked = true;
+                    }
+                }
+            }
+ 
+            if (!hardlinked)
+            {
+                fs::copy_file(sourcePath, targetPath, fs::copy_options::overwrite_existing);
+                if (meta.nlink > 1 && meta.inode != 0)
+                {
+                    seenInodes[meta.inode] = targetPath;
+                }
+            }
             copied = true;
         }
-
+        else if (hasMeta && filter.includeSpecialFiles &&
+                 (meta.isPipe || meta.isBlockDevice || meta.isCharDevice))
+        {
+            // 管道/块设备/字符设备：用 mkfifo/mknod 重建
+            std::string reason;
+            copied = createSpecialFile(targetPath, meta, reason);
+            if (!copied)
+            {
+                std::cerr << "[警告] 跳过特殊文件 " << sourcePath << ": " << reason << "\n";
+            }
+        }
+ 
         if (copied && filter.preserveMetadata && hasMeta)
         {
             applyFileMetadata(targetPath, meta);
         }
-
+ 
         if (copied)
         {
             copiedFiles++;
         }
     }
-
+ 
     if (copiedFiles == 0)
     {
         throw std::runtime_error("没有符合条件的文件可备份");
     }
-
+ 
     return finalizeBackup(
         backupDir,
         normalizedSources.front(),
@@ -406,7 +472,7 @@ fs::path createBackupFromSources(
         newHashes,
         normalizedSources);
 }
-
+ 
 void restoreBackup(
     const fs::path &backupPath,
     const fs::path &destination,
@@ -417,12 +483,12 @@ void restoreBackup(
     {
         throw std::runtime_error("备份文件或目录不存在");
     }
-
+ 
     fs::create_directories(destination);
-
+ 
     fs::path workPath = backupPath;
     fs::path tempPath;
-
+ 
     // 解密
     if (backupPath.extension() == ".enc")
     {
@@ -430,7 +496,7 @@ void restoreBackup(
         {
             throw std::runtime_error("还原加密备份时密码不能为空");
         }
-
+ 
         tempPath = fs::temp_directory_path() / ("restore_" + nowString());
         fs::create_directories(tempPath);
         fs::path decryptedPath = decryptFile(backupPath, password, encryptAlgo);
@@ -439,12 +505,12 @@ void restoreBackup(
         fs::remove_all(decryptedPath.parent_path());
         workPath = movedPath;
     }
-
+ 
     // 判断是否为归档
     bool isZip = workPath.extension() == ".zip";
     bool isTar = workPath.extension() == ".tar";
     bool isTarGz = (workPath.extension() == ".gz" && workPath.stem().extension() == ".tar");
-
+ 
     if (isZip || isTar || isTarGz)
     {
         // 直接解压到目标目录，特殊文件由 tar/unzip 原生重建
@@ -463,13 +529,13 @@ void restoreBackup(
             destination / workPath.filename(),
             fs::copy_options::overwrite_existing);
     }
-
+ 
     if (!tempPath.empty())
     {
         fs::remove_all(tempPath);
     }
 }
-
+ 
 std::vector<fs::path> listBackups(const fs::path &destination)
 {
     std::vector<fs::path> backups;
@@ -477,7 +543,7 @@ std::vector<fs::path> listBackups(const fs::path &destination)
     {
         return backups;
     }
-
+ 
     for (const auto &entry : fs::directory_iterator(destination))
     {
         std::string name = entry.path().filename().string();
@@ -486,11 +552,11 @@ std::vector<fs::path> listBackups(const fs::path &destination)
             backups.push_back(entry.path());
         }
     }
-
+ 
     std::sort(backups.begin(), backups.end());
     return backups;
 }
-
+ 
 std::time_t backupTimestamp(const fs::path &path)
 {
     std::string name = path.filename().string();
@@ -505,7 +571,7 @@ std::time_t backupTimestamp(const fs::path &path)
         return 0;
     }
     std::string ts = rest.substr(0, 15);
-
+ 
     std::tm tm{};
     std::istringstream iss(ts);
     iss >> std::get_time(&tm, "%Y%m%d_%H%M%S");
@@ -515,5 +581,5 @@ std::time_t backupTimestamp(const fs::path &path)
     }
     return std::mktime(&tm);
 }
-
+ 
 } // namespace backup

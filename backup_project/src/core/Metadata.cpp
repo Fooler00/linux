@@ -14,7 +14,9 @@
 #include <utime.h>
 
 #include <filesystem>
+#include <functional>
 #include <iostream>
+#include <map>
 
 namespace backup {
 
@@ -32,6 +34,8 @@ bool getFileMetadata(const fs::path &path, FileMetadata &meta)
     meta.mtime = st.st_mtime;
     meta.atime = st.st_atime;
     meta.rdev = st.st_rdev;
+    meta.inode = st.st_ino;
+    meta.nlink = st.st_nlink;
 
     if (S_ISLNK(st.st_mode))
     {
@@ -72,7 +76,10 @@ void applyFileMetadata(const fs::path &path, const FileMetadata &meta)
 {
     chmod(path.c_str(), meta.mode);
     // 仅 root 或具有 CAP_CHOWN 才能成功改变属主；普通用户调用失败可忽略
-    chown(path.c_str(), meta.uid, meta.gid);
+    if (chown(path.c_str(), meta.uid, meta.gid) != 0)
+    {
+        // 忽略权限不足导致的失败
+    }
 
     struct utimbuf times{};
     times.actime = meta.atime;
@@ -129,42 +136,73 @@ bool createSpecialFile(const fs::path &dst, const FileMetadata &meta, std::strin
 
 void copyTreeWithSpecial(const fs::path &src, const fs::path &dst)
 {
-    fs::create_directories(dst);
+    // inode → 已还原路径，用于硬链接重建
+    std::map<ino_t, fs::path> seenInodes;
 
-    for (const auto &entry : fs::directory_iterator(src))
-    {
-        fs::path target = dst / entry.path().filename();
+    std::function<void(const fs::path &, const fs::path &)> impl =
+        [&](const fs::path &s, const fs::path &d) {
+            fs::create_directories(d);
 
-        FileMetadata meta;
-        bool hasMeta = getFileMetadata(entry.path(), meta);
-
-        if (fs::is_directory(entry.path()))
-        {
-            copyTreeWithSpecial(entry.path(), target);
-        }
-        else if (entry.is_symlink())
-        {
-            std::string reason;
-            createSpecialFile(target, meta, reason);
-        }
-        else if (hasMeta && (meta.isPipe || meta.isBlockDevice || meta.isCharDevice))
-        {
-            std::string reason;
-            if (!createSpecialFile(target, meta, reason))
+            for (const auto &entry : fs::directory_iterator(s))
             {
-                std::cerr << "[警告] 还原时跳过特殊文件 " << entry.path() << ": " << reason << "\n";
-            }
-        }
-        else if (entry.is_regular_file())
-        {
-            fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing);
-        }
+                fs::path target = d / entry.path().filename();
 
-        if (hasMeta)
-        {
-            applyFileMetadata(target, meta);
-        }
-    }
+                FileMetadata meta;
+                bool hasMeta = getFileMetadata(entry.path(), meta);
+
+                if (fs::is_directory(entry.path()))
+                {
+                    impl(entry.path(), target);
+                }
+                else if (entry.is_symlink())
+                {
+                    std::string reason;
+                    createSpecialFile(target, meta, reason);
+                }
+                else if (hasMeta && (meta.isPipe || meta.isBlockDevice || meta.isCharDevice))
+                {
+                    std::string reason;
+                    if (!createSpecialFile(target, meta, reason))
+                    {
+                        std::cerr << "[警告] 还原时跳过特殊文件 " << entry.path() << ": " << reason << "\n";
+                    }
+                }
+                else if (entry.is_regular_file())
+                {
+                    // 硬链接检测：同一 inode 已还原过则创建硬链接
+                    bool hardlinked = false;
+                    if (meta.nlink > 1 && meta.inode != 0)
+                    {
+                        auto it = seenInodes.find(meta.inode);
+                        if (it != seenInodes.end())
+                        {
+                            std::error_code ec;
+                            fs::create_hard_link(it->second, target, ec);
+                            if (!ec)
+                            {
+                                hardlinked = true;
+                            }
+                        }
+                    }
+
+                    if (!hardlinked)
+                    {
+                        fs::copy_file(entry.path(), target, fs::copy_options::overwrite_existing);
+                        if (meta.nlink > 1 && meta.inode != 0)
+                        {
+                            seenInodes[meta.inode] = target;
+                        }
+                    }
+                }
+
+                if (hasMeta)
+                {
+                    applyFileMetadata(target, meta);
+                }
+            }
+        };
+
+    impl(src, dst);
 }
 
 } // namespace backup

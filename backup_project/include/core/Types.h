@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <limits>
 #include <string>
+#include <sys/types.h>
 #include <vector>
 
 namespace backup {
@@ -55,7 +56,9 @@ struct FileMetadata
     bool isBlockDevice = false;
     bool isCharDevice = false;
     bool isSocket = false;
-    dev_t rdev = 0; // 设备文件主从设备号
+    dev_t rdev = 0;       // 设备文件主从设备号
+    ino_t inode = 0;      // inode 号，用于硬链接识别
+    nlink_t nlink = 0;    // 硬链接计数（>1 表示存在硬链接）
 };
 
 // ---------------- 备份过滤条件 ----------------

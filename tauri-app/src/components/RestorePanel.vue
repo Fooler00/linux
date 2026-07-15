@@ -6,6 +6,7 @@ import PathPicker from "./PathPicker.vue";
 import SubmitButton from "./SubmitButton.vue";
 import { ENCRYPT_ALGO_OPTIONS } from "../utils/options";
 import { validateRestoreForm } from "../utils/validation";
+import { watchTaskUntilDone } from "../utils/taskWatch";
 
 const emit = defineEmits<{ submitted: [] }>();
 // 防止同一份还原表单被连续提交，重复创建真实还原任务。
@@ -40,6 +41,23 @@ async function submit() {
     });
     showMessage(`还原任务已创建，任务编号：${result.taskId}`, "success");
     emit("submitted");
+
+    // 异步轮询最终状态，再弹出一次 Toast，不阻塞表单提交
+    void watchTaskUntilDone(result.taskId)
+      .then((task) => {
+        if (task.status === "success") {
+          showMessage(task.message || `还原任务 ${result.taskId} 已完成`, "success", 4000);
+        } else {
+          showMessage(task.message || `还原任务 ${result.taskId} 失败`, "error");
+        }
+        emit("submitted");
+      })
+      .catch((error) => {
+        showMessage(
+          error instanceof Error ? error.message : `还原任务 ${result.taskId} 状态未知`,
+          "error"
+        );
+      });
   } catch (error) {
     showMessage(error instanceof Error ? error.message : "还原失败", "error");
   } finally {

@@ -8,8 +8,9 @@ import BackupPanel from "./components/BackupPanel.vue";
 import RestorePanel from "./components/RestorePanel.vue";
 import SchedulePanel from "./components/SchedulePanel.vue";
 import TaskList from "./components/TaskList.vue";
+import ToastHost from "./components/ToastHost.vue";
 import WatchPanel from "./components/WatchPanel.vue";
-import { clearMessage, messageState } from "./composables/useMessage";
+import { clearMessage } from "./composables/useMessage";
 import { clearSession, readSession, saveSession } from "./utils/session";
 
 const tabs = [
@@ -47,6 +48,8 @@ function onTaskSubmitted() {
 
 <template>
   <div class="app-shell">
+    <ToastHost />
+
     <!-- 未登录：全屏居中认证卡片 -->
     <AuthPanel v-if="!currentUser" @authenticated="onAuthenticated" />
 
@@ -90,16 +93,6 @@ function onTaskSubmitted() {
       </aside>
 
       <div class="main-area">
-        <!-- 全局消息条：置于内容区顶部，点击可关闭 -->
-        <div
-          v-if="messageState.text"
-          class="message-bar"
-          :class="messageState.type"
-          @click="clearMessage"
-        >
-          {{ messageState.text }}
-        </div>
-
         <main class="main-content">
           <BackupPanel v-show="activeTab === 'backup'" @submitted="onTaskSubmitted" />
           <RestorePanel v-show="activeTab === 'restore'" @submitted="onTaskSubmitted" />

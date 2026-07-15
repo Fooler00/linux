@@ -7,6 +7,7 @@ import SubmitButton from "./SubmitButton.vue";
 import { splitLines } from "../utils/format";
 import { ARCHIVE_TYPE_OPTIONS, ENCRYPT_ALGO_OPTIONS } from "../utils/options";
 import { validateBackupForm } from "../utils/validation";
+import { watchTaskUntilDone } from "../utils/taskWatch";
 
 const emit = defineEmits<{ submitted: [] }>();
 // 防止同一份表单被连续点击，重复创建多个真实备份任务。
@@ -104,6 +105,23 @@ async function submit() {
     const result = await startBackup(payload);
     showMessage(`备份任务已创建，任务编号：${result.taskId}`, "success");
     emit("submitted");
+
+    // 异步轮询最终状态，再弹出一次 Toast，不阻塞表单提交
+    void watchTaskUntilDone(result.taskId)
+      .then((task) => {
+        if (task.status === "success") {
+          showMessage(task.message || `备份任务 ${result.taskId} 已完成`, "success", 4000);
+        } else {
+          showMessage(task.message || `备份任务 ${result.taskId} 失败`, "error");
+        }
+        emit("submitted");
+      })
+      .catch((error) => {
+        showMessage(
+          error instanceof Error ? error.message : `备份任务 ${result.taskId} 状态未知`,
+          "error"
+        );
+      });
   } catch (error) {
     showMessage(error instanceof Error ? error.message : "备份失败", "error");
   } finally {

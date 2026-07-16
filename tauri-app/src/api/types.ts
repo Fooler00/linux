@@ -119,7 +119,8 @@ export interface BackupMetadata {
   username: string;
   // TODO: /api/metadata 直接读取 metadata.json，历史备份里字段可能缺失或不是当前白名单值。
   archiveType: ArchiveTypeValue;
-  encryptAlgo: EncryptAlgoValue;
+  encrypt?: boolean;
+  encryptAlgo: EncryptAlgoValue | "none";
   preserveMetadata: boolean;
   includeSpecialFiles: boolean;
   incremental: boolean;

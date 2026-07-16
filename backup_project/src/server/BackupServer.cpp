@@ -335,7 +335,7 @@ void BackupServer::registerRoutes()
             cfg.source = body.value("source", "");
             cfg.destination = body.value("destination", "");
             cfg.intervalSeconds = body.value("intervalSeconds", 3600);
-            cfg.maxBackups = body.value("maxBackups", 0);
+            cfg.maxBackups = body.value("maxBackups", -1);
             cfg.maxAgeDays = body.value("maxAgeDays", 0);
             cfg.compress = body.value("compress", false);
             cfg.encrypt = body.value("encrypt", false);
@@ -371,7 +371,7 @@ void BackupServer::registerRoutes()
         try {
             json body = json::parse(req.body);
             std::string destination = body.value("destination", "");
-            int maxBackups = body.value("maxBackups", 0);
+            int maxBackups = body.value("maxBackups", -1);
             int maxAgeDays = body.value("maxAgeDays", 0);
             int removed = pruneBackups(destination, maxBackups, maxAgeDays);
             res.set_content(json{{"removed", removed}, {"message", "已淘汰 " + std::to_string(removed) + " 个旧备份"}}.dump(), "application/json");
@@ -450,6 +450,19 @@ void BackupServer::registerRoutes()
             impl_->watching = true;
             impl_->watchThread = std::thread([this, source, destination, interval, filter, user]() {
                 auto previous = snapshotFiles(source);
+
+                // 启动后立即备份一次，再进入变更轮询。
+                {
+                    int taskId = TaskManager::instance().add("realtime-backup", source, destination, user);
+                    try {
+                        fs::path path = createBackup(source, destination, false, false, "", filter);
+                        TaskManager::instance().update(taskId, "success", "实时备份完成：" + path.string());
+                        previous = snapshotFiles(source);
+                    } catch (const std::exception &e) {
+                        TaskManager::instance().update(taskId, "failed", e.what());
+                    }
+                }
+
                 while (impl_->watching) {
                     {
                         std::unique_lock lock(impl_->watchMutex);
@@ -465,7 +478,7 @@ void BackupServer::registerRoutes()
                     if (current != previous) {
                         int taskId = TaskManager::instance().add("realtime-backup", source, destination, user);
                         try {
-                            fs::path path = createBackup(source, destination, true, false, "", filter);
+                            fs::path path = createBackup(source, destination, false, false, "", filter);
                             TaskManager::instance().update(taskId, "success", "实时备份完成：" + path.string());
                             previous = current;
                         } catch (const std::exception& e) {

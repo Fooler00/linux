@@ -11,7 +11,7 @@ const form = reactive({
   source: "",
   destination: "",
   intervalSeconds: 3600,
-  maxBackups: 0,
+  maxBackups: -1,
   maxAgeDays: 0,
   compress: false,
   encrypt: false,
@@ -33,12 +33,14 @@ async function submit() {
   }
 
   try {
+    const maxBackups = Number(form.maxBackups);
+    const maxAgeDays = Number(form.maxAgeDays);
     const result = await startSchedule({
       source: form.source.trim(),
       destination: form.destination.trim(),
       intervalSeconds: Number(form.intervalSeconds) || 3600,
-      maxBackups: Number(form.maxBackups) || 0,
-      maxAgeDays: Number(form.maxAgeDays) || 0,
+      maxBackups: Number.isFinite(maxBackups) ? maxBackups : -1,
+      maxAgeDays: Number.isFinite(maxAgeDays) && maxAgeDays > 0 ? maxAgeDays : 0,
       compress: form.compress,
       encrypt: form.encrypt,
       password: form.password,
@@ -99,8 +101,8 @@ onMounted(refresh);
         <input v-model.number="form.intervalSeconds" type="number" min="1" />
       </label>
       <label class="field">
-        <span>最多保留备份数（0=不限）</span>
-        <input v-model.number="form.maxBackups" type="number" min="0" />
+        <span>最多保留备份数（-1=不限，0=全部删除）</span>
+        <input v-model.number="form.maxBackups" type="number" min="-1" />
       </label>
       <label class="field">
         <span>最多保留天数（0=不限）</span>
@@ -109,7 +111,7 @@ onMounted(refresh);
       <div class="checkbox-group">
         <label class="checkbox">
           <input v-model="form.compress" type="checkbox" />
-          <span>启用压缩</span>
+          <span>启用归档</span>
         </label>
         <label class="checkbox">
           <input v-model="form.encrypt" type="checkbox" />
@@ -151,10 +153,11 @@ onMounted(refresh);
             <td class="mono">{{ item.destination }}</td>
             <td>{{ formatInterval(item.intervalSeconds) }}</td>
             <td>
-              <span v-if="item.maxBackups">最多 {{ item.maxBackups }} 个</span>
-              <span v-if="item.maxBackups && item.maxAgeDays"> / </span>
+              <span v-if="item.maxBackups === 0">清空全部</span>
+              <span v-else-if="item.maxBackups > 0">最多 {{ item.maxBackups }} 个</span>
+              <span v-if="item.maxBackups >= 0 && item.maxAgeDays"> / </span>
               <span v-if="item.maxAgeDays">最多 {{ item.maxAgeDays }} 天</span>
-              <span v-if="!item.maxBackups && !item.maxAgeDays">不限</span>
+              <span v-if="item.maxBackups < 0 && !item.maxAgeDays">不限</span>
             </td>
             <td>
               <button type="button" class="danger small" @click="stop(item.id)">停止</button>

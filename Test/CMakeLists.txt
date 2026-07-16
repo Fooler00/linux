@@ -42,6 +42,7 @@ add_executable(backup_unit_tests
     unit/test_filter.cpp
     unit/test_incremental_manifest.cpp
     unit/test_user_auth_task.cpp
+    unit/test_prune.cpp
 )
 target_link_libraries(backup_unit_tests PRIVATE
     backup_core

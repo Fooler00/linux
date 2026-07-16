@@ -38,6 +38,8 @@ TEST(MetadataManifestIntegration, MetadataJson_RecordsSourceAndOptions)
     EXPECT_EQ(meta.at("source").get<std::string>(), (dir / "source").string());
     EXPECT_EQ(meta.at("username").get<std::string>(), "tester");
     EXPECT_EQ(meta.at("archiveType").get<std::string>(), "none");
+    EXPECT_FALSE(meta.at("encrypt").get<bool>());
+    EXPECT_EQ(meta.at("encryptAlgo").get<std::string>(), "none");
     EXPECT_EQ(meta.at("filter").at("extensions")[0].get<std::string>(), ".txt");
 }
 

@@ -84,11 +84,10 @@ fs::path finalizeBackup(
 {
     writeIncrementalManifest(backupDir, newHashes);
  
-    std::string archiveType = filter.archiveType;
-    if (compress && archiveType == "zip")
-    {
-        archiveType = "zip";
-    }
+    // compress=false 时强制不归档；为 true 时才按所选 archiveType 打包。
+    std::string archiveType = compress ? filter.archiveType : "none";
+    // 未加密时写 none，避免把表单默认算法误记为「已加密」。
+    std::string encryptAlgo = encrypt ? filter.encryptAlgo : "none";
  
     writeMetadata(
         backupDir,
@@ -97,7 +96,8 @@ fs::path finalizeBackup(
         filter,
         copiedFiles,
         archiveType,
-        filter.encryptAlgo,
+        encryptAlgo,
+        encrypt,
         filter.incremental,
         metadataSources);
  
@@ -137,6 +137,7 @@ void writeMetadata(
     int copiedFiles,
     const std::string &archiveType,
     const std::string &encryptAlgo,
+    bool encrypt,
     bool incremental,
     const std::vector<fs::path> &sources)
 {
@@ -158,7 +159,10 @@ void writeMetadata(
     meta["userId"] = filter.userId;
     meta["username"] = filter.username;
     meta["archiveType"] = archiveType.empty() ? filter.archiveType : archiveType;
-    meta["encryptAlgo"] = encryptAlgo.empty() ? filter.encryptAlgo : encryptAlgo;
+    meta["encrypt"] = encrypt;
+    meta["encryptAlgo"] = encrypt
+                              ? (encryptAlgo.empty() ? filter.encryptAlgo : encryptAlgo)
+                              : "none";
     meta["preserveMetadata"] = filter.preserveMetadata;
     meta["includeSpecialFiles"] = filter.includeSpecialFiles;
     meta["incremental"] = incremental;

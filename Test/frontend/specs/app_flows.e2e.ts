@@ -79,7 +79,7 @@ describe("Backup Manager navigation and UI smoke", () => {
     await openTab("手动备份", "手动备份");
     await expectPanelText("源路径（文件或目录）");
     await expectPanelText("备份目标目录");
-    await expectPanelText("启用压缩");
+    await expectPanelText("启用归档");
     await expectPanelText("开始备份");
   });
 

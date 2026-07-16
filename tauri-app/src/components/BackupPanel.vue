@@ -20,7 +20,8 @@ const form = reactive({
   compress: false,
   encrypt: false,
   password: "",
-  archiveType: "zip",
+  // 与 compress 默认 false 对齐；勾选启用归档后再选具体类型。
+  archiveType: "none",
   encryptAlgo: "aes-256-cbc",
   preserveMetadata: true,
   includeSpecialFiles: true,
@@ -40,11 +41,27 @@ const form = reactive({
 
 const isMultiSourceMode = computed(() => form.sources.length > 0);
 
+// 仅在勾选「启用归档」时可选，下拉不再提供「不归档」。
+const archiveFormatOptions = computed(() =>
+  ARCHIVE_TYPE_OPTIONS.filter((option) => option.value !== "none")
+);
+
 watch(
   () => form.sources.length,
   (count) => {
     if (count > 0 && form.incremental) {
       form.incremental = false;
+    }
+  }
+);
+
+watch(
+  () => form.compress,
+  (enabled) => {
+    if (!enabled) {
+      form.archiveType = "none";
+    } else if (form.archiveType === "none") {
+      form.archiveType = "zip";
     }
   }
 );
@@ -90,7 +107,7 @@ async function submit() {
       compress: form.compress,
       encrypt: form.encrypt,
       password: form.password,
-      archiveType: form.archiveType,
+      archiveType: form.compress ? form.archiveType : "none",
       encryptAlgo: form.encryptAlgo,
       preserveMetadata: form.preserveMetadata,
       includeSpecialFiles: form.includeSpecialFiles,
@@ -160,9 +177,9 @@ async function submit() {
 
       <label class="field">
         <span>归档类型</span>
-        <select v-model="form.archiveType">
+        <select v-model="form.archiveType" :disabled="!form.compress || submitting">
           <option
-            v-for="option in ARCHIVE_TYPE_OPTIONS"
+            v-for="option in archiveFormatOptions"
             :key="option.value"
             :value="option.value"
           >
@@ -172,7 +189,7 @@ async function submit() {
       </label>
       <label class="field">
         <span>加密算法</span>
-        <select v-model="form.encryptAlgo">
+        <select v-model="form.encryptAlgo" :disabled="!form.encrypt || submitting">
           <option
             v-for="option in ENCRYPT_ALGO_OPTIONS"
             :key="option.value"
@@ -185,11 +202,11 @@ async function submit() {
 
       <div class="checkbox-group">
         <label class="checkbox">
-          <input v-model="form.compress" type="checkbox" />
-          <span>启用压缩</span>
+          <input v-model="form.compress" type="checkbox" :disabled="submitting" />
+          <span>启用归档</span>
         </label>
         <label class="checkbox">
-          <input v-model="form.encrypt" type="checkbox" />
+          <input v-model="form.encrypt" type="checkbox" :disabled="submitting" />
           <span>启用加密</span>
         </label>
         <label class="checkbox">

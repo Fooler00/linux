@@ -16,7 +16,7 @@ namespace backup {
 namespace fs = std::filesystem;
 
 // 按保留策略删除旧备份
-//   maxBackups  最多保留数量（0 不限）
+//   maxBackups  最多保留数量（-1 不限，0 全部删除，N>0 保留最新 N 个）
 //   maxAgeDays  最多保留天数（0 不限）
 int pruneBackups(const fs::path &destination, int maxBackups, int maxAgeDays);
 

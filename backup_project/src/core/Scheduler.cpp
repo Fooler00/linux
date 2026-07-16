@@ -20,20 +20,23 @@ int pruneBackups(const fs::path &destination, int maxBackups, int maxAgeDays)
     int removed = 0;
     auto now = std::time(nullptr);
 
-    // 按数量淘汰
-    if (maxBackups > 0 && static_cast<int>(backups.size()) > maxBackups)
+    // 按数量淘汰：-1=不限，0=全部删除，N>0=只保留最新 N 个
+    if (maxBackups >= 0)
     {
         int toRemove = static_cast<int>(backups.size()) - maxBackups;
-        for (int i = 0; i < toRemove; ++i)
+        if (toRemove > 0)
         {
-            std::error_code ec;
-            fs::remove_all(backups[i], ec);
-            if (!ec)
+            for (int i = 0; i < toRemove; ++i)
             {
-                removed++;
+                std::error_code ec;
+                fs::remove_all(backups[i], ec);
+                if (!ec)
+                {
+                    removed++;
+                }
             }
+            backups.erase(backups.begin(), backups.begin() + toRemove);
         }
-        backups.erase(backups.begin(), backups.begin() + toRemove);
     }
 
     // 按天数淘汰
@@ -93,14 +96,8 @@ int Scheduler::start(ScheduleConfig config)
     threads_[id] = std::thread([this, config]()
                                {
         ScheduleConfig cfg = config;
+        // 启动后先备份一次，再按间隔等待，避免首次要空等一整周期。
         while (running_) {
-            for (int i = 0; i < cfg.intervalSeconds && running_; ++i) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            }
-            if (!running_) {
-                break;
-            }
-
             // 检查调度是否仍存在（可能已被删除）
             {
                 std::lock_guard<std::mutex> lock(mutex_);
@@ -116,8 +113,8 @@ int Scheduler::start(ScheduleConfig config)
                                              cfg.encrypt, cfg.password, cfg.filter);
                 TaskManager::instance().update(taskId, "success", "定时备份完成：" + path.string());
 
-                // 数据淘汰
-                if (cfg.maxBackups > 0 || cfg.maxAgeDays > 0) {
+                // 数据淘汰：maxBackups>=0 或 maxAgeDays>0 时执行
+                if (cfg.maxBackups >= 0 || cfg.maxAgeDays > 0) {
                     int removed = pruneBackups(cfg.destination, cfg.maxBackups, cfg.maxAgeDays);
                     if (removed > 0) {
                         TaskManager::instance().update(
@@ -127,6 +124,10 @@ int Scheduler::start(ScheduleConfig config)
                 }
             } catch (const std::exception& e) {
                 TaskManager::instance().update(taskId, "failed", e.what());
+            }
+
+            for (int i = 0; i < cfg.intervalSeconds && running_; ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
             }
         } });
 

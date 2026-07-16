@@ -114,3 +114,33 @@ TEST(FilterUnit, UnicodeAndSpacePath_MatchesLexicalRelativePath)
     filter.includePaths = {"中文 目录/*"};
     EXPECT_TRUE(fileMatchesFilter(entryFor(dir / "中文 目录" / "报告.txt"), dir, filter));
 }
+
+TEST(FilterUnit, SpecialFiles_RespectExtensionFilter)
+{
+    auto dir = test_support::caseDir("filter_special_ext");
+    test_support::writeFile(dir / "target.txt", "target");
+
+    std::error_code ec;
+    fs::create_symlink("target.txt", dir / "symlink", ec);
+    if (ec)
+    {
+        GTEST_SKIP() << "symlink creation failed: " << ec.message();
+    }
+    ec.clear();
+    fs::create_symlink("target.txt", dir / "keep.png", ec);
+    if (ec)
+    {
+        GTEST_SKIP() << "symlink creation failed: " << ec.message();
+    }
+
+    BackupFilter withSpecial;
+    withSpecial.includeSpecialFiles = true;
+    withSpecial.extensions = {".png"};
+    EXPECT_FALSE(fileMatchesFilter(entryFor(dir / "symlink"), dir, withSpecial));
+    EXPECT_TRUE(fileMatchesFilter(entryFor(dir / "keep.png"), dir, withSpecial));
+
+    BackupFilter withoutSpecial = withSpecial;
+    withoutSpecial.includeSpecialFiles = false;
+    EXPECT_FALSE(fileMatchesFilter(entryFor(dir / "symlink"), dir, withoutSpecial));
+    EXPECT_FALSE(fileMatchesFilter(entryFor(dir / "keep.png"), dir, withoutSpecial));
+}

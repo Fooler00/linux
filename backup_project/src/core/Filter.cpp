@@ -220,8 +220,8 @@ bool fileMatchesFilter(const fs::directory_entry &entry, const fs::path &source,
     bool isSymlink = fs::is_symlink(st);
     bool isRegular = fs::is_regular_file(st);
 
-    // 符号链接一律按特殊文件处理（不跟随、不参与尺寸/扩展名/时间筛选），
-    // 避免 file_size/last_write_time 跟随断链时抛 filesystem_error
+    // 符号链接按特殊文件处理（不跟随）；尺寸/时间仍豁免，避免断链上
+    // file_size/last_write_time 失败误排除。扩展名与路径/文件名筛选照常生效。
     if (isSymlink)
     {
         if (!filter.includeSpecialFiles)
@@ -241,17 +241,21 @@ bool fileMatchesFilter(const fs::directory_entry &entry, const fs::path &source,
         {
             return false;
         }
+        if (!extensionMatches(entry.path(), filter.extensions))
+        {
+            return false;
+        }
         return true;
     }
 
     if (!isRegular)
     {
-        // 非常规文件：根据 includeSpecialFiles 决定是否纳入
+        // 非常规文件：includeSpecialFiles 为类型开关；扩展名等高级筛选仍须满足。
+        // 尺寸/时间豁免（FIFO/设备上 file_size 等不稳定）。
         if (!filter.includeSpecialFiles)
         {
             return false;
         }
-        // 特殊文件不参与尺寸/扩展名/时间筛选
         if (!containsAnyPathPart(relative, filter.includePaths))
         {
             return false;
@@ -262,6 +266,10 @@ bool fileMatchesFilter(const fs::directory_entry &entry, const fs::path &source,
         }
         if (!filter.fileNameContains.empty() &&
             entry.path().filename().string().find(filter.fileNameContains) == std::string::npos)
+        {
+            return false;
+        }
+        if (!extensionMatches(entry.path(), filter.extensions))
         {
             return false;
         }

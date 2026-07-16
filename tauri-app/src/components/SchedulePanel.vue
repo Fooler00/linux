@@ -109,7 +109,7 @@ onMounted(refresh);
       <div class="checkbox-group">
         <label class="checkbox">
           <input v-model="form.compress" type="checkbox" />
-          <span>启用压缩</span>
+          <span>启用归档</span>
         </label>
         <label class="checkbox">
           <input v-model="form.encrypt" type="checkbox" />

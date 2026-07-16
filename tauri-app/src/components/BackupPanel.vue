@@ -20,7 +20,8 @@ const form = reactive({
   compress: false,
   encrypt: false,
   password: "",
-  archiveType: "zip",
+  // 与 compress 默认 false 对齐；勾选启用归档后再选具体类型。
+  archiveType: "none",
   encryptAlgo: "aes-256-cbc",
   preserveMetadata: true,
   includeSpecialFiles: true,
@@ -45,6 +46,17 @@ watch(
   (count) => {
     if (count > 0 && form.incremental) {
       form.incremental = false;
+    }
+  }
+);
+
+watch(
+  () => form.compress,
+  (enabled) => {
+    if (!enabled) {
+      form.archiveType = "none";
+    } else if (form.archiveType === "none") {
+      form.archiveType = "zip";
     }
   }
 );
@@ -90,7 +102,7 @@ async function submit() {
       compress: form.compress,
       encrypt: form.encrypt,
       password: form.password,
-      archiveType: form.archiveType,
+      archiveType: form.compress ? form.archiveType : "none",
       encryptAlgo: form.encryptAlgo,
       preserveMetadata: form.preserveMetadata,
       includeSpecialFiles: form.includeSpecialFiles,
@@ -160,7 +172,7 @@ async function submit() {
 
       <label class="field">
         <span>归档类型</span>
-        <select v-model="form.archiveType">
+        <select v-model="form.archiveType" :disabled="!form.compress || submitting">
           <option
             v-for="option in ARCHIVE_TYPE_OPTIONS"
             :key="option.value"
@@ -185,8 +197,8 @@ async function submit() {
 
       <div class="checkbox-group">
         <label class="checkbox">
-          <input v-model="form.compress" type="checkbox" />
-          <span>启用压缩</span>
+          <input v-model="form.compress" type="checkbox" :disabled="submitting" />
+          <span>启用归档</span>
         </label>
         <label class="checkbox">
           <input v-model="form.encrypt" type="checkbox" />

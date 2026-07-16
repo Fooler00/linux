@@ -84,11 +84,8 @@ fs::path finalizeBackup(
 {
     writeIncrementalManifest(backupDir, newHashes);
  
-    std::string archiveType = filter.archiveType;
-    if (compress && archiveType == "zip")
-    {
-        archiveType = "zip";
-    }
+    // compress=false 时强制不归档；为 true 时才按所选 archiveType 打包。
+    std::string archiveType = compress ? filter.archiveType : "none";
  
     writeMetadata(
         backupDir,

@@ -450,6 +450,19 @@ void BackupServer::registerRoutes()
             impl_->watching = true;
             impl_->watchThread = std::thread([this, source, destination, interval, filter, user]() {
                 auto previous = snapshotFiles(source);
+
+                // 启动后立即备份一次，再进入变更轮询。
+                {
+                    int taskId = TaskManager::instance().add("realtime-backup", source, destination, user);
+                    try {
+                        fs::path path = createBackup(source, destination, true, false, "", filter);
+                        TaskManager::instance().update(taskId, "success", "实时备份完成：" + path.string());
+                        previous = snapshotFiles(source);
+                    } catch (const std::exception &e) {
+                        TaskManager::instance().update(taskId, "failed", e.what());
+                    }
+                }
+
                 while (impl_->watching) {
                     {
                         std::unique_lock lock(impl_->watchMutex);

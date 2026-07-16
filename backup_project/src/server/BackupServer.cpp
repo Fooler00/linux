@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <condition_variable>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -39,8 +40,10 @@ struct BackupServer::Impl
     std::shared_ptr<cloud::ICloudStorage> storage;
     std::unique_ptr<UserManager> userManager;
 
-    // 实时备份监听状态
+    // 实时备份监听状态（stop 通过 CV 打断 wait，避免 sleep 醒来后仍备份）
     std::atomic<bool> watching{false};
+    std::mutex watchMutex;
+    std::condition_variable watchCv;
     std::thread watchThread;
 
     // 已注册路由的服务器实例（run() 时填充）
@@ -158,9 +161,11 @@ BackupServer::BackupServer(ServerConfig config, std::shared_ptr<cloud::ICloudSto
 
 BackupServer::~BackupServer()
 {
-    if (impl_->watching)
+    impl_->watching = false;
+    impl_->watchCv.notify_all();
+    if (impl_->watchThread.joinable())
     {
-        impl_->watching = false;
+        impl_->watchThread.join();
     }
     Scheduler::instance().stopAll();
 }
@@ -437,11 +442,25 @@ void BackupServer::registerRoutes()
                 throw std::runtime_error("实时备份已经在运行");
             }
 
+            // 上次 stop 后线程应已 join；兜底避免赋值未 join 的 thread 导致 terminate
+            if (impl_->watchThread.joinable()) {
+                impl_->watchThread.join();
+            }
+
             impl_->watching = true;
             impl_->watchThread = std::thread([this, source, destination, interval, filter, user]() {
                 auto previous = snapshotFiles(source);
                 while (impl_->watching) {
-                    std::this_thread::sleep_for(std::chrono::seconds(interval));
+                    {
+                        std::unique_lock lock(impl_->watchMutex);
+                        impl_->watchCv.wait_for(lock, std::chrono::seconds(interval),
+                                                [this] { return !impl_->watching.load(); });
+                    }
+                    // stop 后立即退出，禁止再扫描/备份
+                    if (!impl_->watching) {
+                        break;
+                    }
+
                     auto current = snapshotFiles(source);
                     if (current != previous) {
                         int taskId = TaskManager::instance().add("realtime-backup", source, destination, user);
@@ -455,7 +474,6 @@ void BackupServer::registerRoutes()
                     }
                 }
             });
-            impl_->watchThread.detach();
 
             res.set_content(json{{"message", "实时备份已启动"}}.dump(), "application/json");
         } catch (const std::exception& e) {
@@ -466,6 +484,10 @@ void BackupServer::registerRoutes()
     server.Post("/api/watch/stop", [this](const httplib::Request &, httplib::Response &res)
                 {
         impl_->watching = false;
+        impl_->watchCv.notify_all();
+        if (impl_->watchThread.joinable()) {
+            impl_->watchThread.join();
+        }
         res.set_content(json{{"message", "实时备份已停止"}}.dump(), "application/json"); });
 
     // ===== 任务列表 =====

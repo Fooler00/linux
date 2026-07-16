@@ -210,10 +210,41 @@ bool fileMatchesFilter(const fs::directory_entry &entry, const fs::path &source,
         }
     }
  
-    bool isRegular = entry.is_regular_file();
-    bool isSymlink = entry.is_symlink();
- 
-    if (!isRegular && !isSymlink)
+    // 用 symlink_status 判断类型，避免跟随符号链接导致断链抛异常或类型误判
+    std::error_code stEc;
+    auto st = entry.symlink_status(stEc);
+    if (stEc)
+    {
+        return false;
+    }
+    bool isSymlink = fs::is_symlink(st);
+    bool isRegular = fs::is_regular_file(st);
+
+    // 符号链接一律按特殊文件处理（不跟随、不参与尺寸/扩展名/时间筛选），
+    // 避免 file_size/last_write_time 跟随断链时抛 filesystem_error
+    if (isSymlink)
+    {
+        if (!filter.includeSpecialFiles)
+        {
+            return false;
+        }
+        if (!containsAnyPathPart(relative, filter.includePaths))
+        {
+            return false;
+        }
+        if (containsExcludedPathPart(relative, filter.excludePaths))
+        {
+            return false;
+        }
+        if (!filter.fileNameContains.empty() &&
+            entry.path().filename().string().find(filter.fileNameContains) == std::string::npos)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    if (!isRegular)
     {
         // 非常规文件：根据 includeSpecialFiles 决定是否纳入
         if (!filter.includeSpecialFiles)
@@ -236,43 +267,51 @@ bool fileMatchesFilter(const fs::directory_entry &entry, const fs::path &source,
         }
         return true;
     }
- 
+
     if (!containsAnyPathPart(relative, filter.includePaths))
     {
         return false;
     }
- 
+
     if (containsExcludedPathPart(relative, filter.excludePaths))
     {
         return false;
     }
- 
+
     if (!extensionMatches(entry.path(), filter.extensions))
     {
         return false;
     }
- 
+
     if (!filter.fileNameContains.empty() &&
         entry.path().filename().string().find(filter.fileNameContains) == std::string::npos)
     {
         return false;
     }
- 
-    if (isRegular)
+
+    // 用 error_code 重载避免断链/权限问题抛异常
+    std::error_code sizeEc;
+    auto size = entry.file_size(sizeEc);
+    if (sizeEc)
     {
-        auto size = entry.file_size();
-        if (size < filter.minSize || size > filter.maxSize)
-        {
-            return false;
-        }
- 
-        auto modified = fs::last_write_time(entry.path());
-        if (modified < filter.modifiedAfter || modified > filter.modifiedBefore)
-        {
-            return false;
-        }
+        return false;
     }
- 
+    if (size < filter.minSize || size > filter.maxSize)
+    {
+        return false;
+    }
+
+    std::error_code timeEc;
+    auto modified = fs::last_write_time(entry.path(), timeEc);
+    if (timeEc)
+    {
+        return false;
+    }
+    if (modified < filter.modifiedAfter || modified > filter.modifiedBefore)
+    {
+        return false;
+    }
+
     return true;
 }
  

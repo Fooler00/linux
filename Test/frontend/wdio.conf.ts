@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Options } from "@wdio/types";
 
@@ -52,6 +53,7 @@ export const config: Options.Testrunner = {
       return;
     }
     const screenshotDir = path.join(repoRoot, "Test", "output", "frontend", "screenshots");
+    fs.mkdirSync(screenshotDir, { recursive: true });
     await browser.saveScreenshot(path.join(screenshotDir, `${Date.now()}-${test.title.replace(/\W+/g, "_")}.png`));
   },
 };

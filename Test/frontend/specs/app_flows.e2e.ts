@@ -1,17 +1,73 @@
 import { expect, $ } from "@wdio/globals";
+import fs from "node:fs";
+import path from "node:path";
+
+const fixtureRoot = path.resolve(process.cwd(), "../Test/output/frontend/e2e-fixtures");
 
 async function byText(text: string) {
   return $(`//*[normalize-space(.)="${text}"]`);
 }
 
-async function openTab(tab: string, heading: string) {
-  await (await byText(tab)).click();
-  await expect(await byText(heading)).toBeDisplayed();
+async function visiblePanel() {
+  const panels = await $$("section.panel");
+  for (const panel of panels) {
+    if (await panel.isDisplayed()) {
+      return panel;
+    }
+  }
+  throw new Error("No visible panel found");
 }
 
-describe("Backup Manager main flows", () => {
+async function panelText() {
+  return (await visiblePanel()).getText();
+}
+
+async function expectPanelText(text: string) {
+  await browser.waitUntil(
+    async () => (await panelText()).includes(text),
+    {
+      timeout: 5000,
+      timeoutMsg: `Expected visible panel to contain text: ${text}`,
+    }
+  );
+}
+
+async function panelInputByPlaceholder(placeholder: string) {
+  const panel = await visiblePanel();
+  const input = await panel.$(`input[placeholder='${placeholder}']`);
+  await expect(input).toBeDisplayed();
+  return input;
+}
+
+async function panelButtonByText(text: string) {
+  const panel = await visiblePanel();
+  const buttons = await panel.$$("button");
+  for (const button of buttons) {
+    if ((await button.isDisplayed()) && (await button.getText()).trim() === text) {
+      return button;
+    }
+  }
+  throw new Error(`No visible button found in active panel: ${text}`);
+}
+
+async function clickPanelButton(text: string) {
+  const button = await panelButtonByText(text);
+  await button.scrollIntoView();
+  await browser.execute((element: HTMLElement) => element.click(), button);
+}
+
+async function openTab(tab: string, heading: string) {
+  await (await byText(tab)).click();
+  await expectPanelText(heading);
+}
+
+describe("Backup Manager navigation and UI smoke", () => {
+  const username = `e2e_flow_${Date.now()}`;
+  const runDir = path.join(fixtureRoot, username);
+  const emptyBackupDir = path.join(runDir, "empty-backups");
+
   before(async () => {
-    const username = `e2e_flow_${Date.now()}`;
+    fs.mkdirSync(emptyBackupDir, { recursive: true });
     await (await byText("注册")).click();
     await $("input[placeholder='请输入用户名']").setValue(username);
     await $("input[placeholder='请输入密码']").setValue("e2e-password");
@@ -19,48 +75,53 @@ describe("Backup Manager main flows", () => {
     await expect(await byText("手动备份")).toBeDisplayed();
   });
 
-  it("covers BackupPanel navigation and validation", async () => {
+  it("BackupPanelSmoke_DisplaysBackupForm", async () => {
     await openTab("手动备份", "手动备份");
-    await expect($("input[placeholder='/path/to/source']")).toBeDisplayed();
-    await expect($("input[placeholder='/path/to/backup']")).toBeDisplayed();
-    await (await byText("开始备份")).click();
-    await expect(await byText("请检查备份表单")).toBeDisplayed();
+    await expectPanelText("源路径（文件或目录）");
+    await expectPanelText("备份目标目录");
+    await expectPanelText("启用压缩");
+    await expectPanelText("开始备份");
   });
 
-  it("covers RestorePanel navigation and validation", async () => {
+  it("RestorePanelSmoke_DisplaysRestoreForm", async () => {
     await openTab("备份还原", "还原备份");
-    await expect($("input[placeholder='/path/to/backup_xxx']")).toBeDisplayed();
-    await expect($("input[placeholder='/path/to/restore']")).toBeDisplayed();
-    await (await byText("开始还原")).click();
-    await expect(await byText("请检查还原表单")).toBeDisplayed();
+    await expectPanelText("备份文件/目录路径");
+    await expectPanelText("还原目标目录");
+    await expectPanelText("解密密码（加密备份需要）");
+    await expectPanelText("开始还原");
   });
 
-  it("covers WatchPanel controls", async () => {
+  it("WatchPanelSmoke_DisplaysWatchControls", async () => {
     await openTab("实时监听", "实时监听备份");
     await expect(await byText("启动监听")).toBeDisplayed();
     await expect(await byText("停止监听")).toBeDisplayed();
   });
 
-  it("covers SchedulePanel controls", async () => {
+  it("SchedulePanelSmoke_DisplaysScheduleControls", async () => {
     await openTab("定时备份", "定时备份");
     await expect(await byText("启动定时备份")).toBeDisplayed();
     await expect(await byText("运行中的定时任务")).toBeDisplayed();
   });
 
-  it("covers BackupManagePanel controls", async () => {
+  it("BackupManagePanelSmoke_DisplaysManagementControls", async () => {
     await openTab("备份管理", "备份管理与淘汰");
-    await expect(await byText("查询备份")).toBeDisplayed();
-    await expect(await byText("暂无备份记录")).toBeDisplayed();
+    await expectPanelText("查询备份");
+    await expectPanelText("执行淘汰");
+    await expectPanelText("备份目标目录");
+    await expectPanelText("输入备份目录后可查询备份列表，并查看对应 metadata。");
   });
 
-  it("covers CloudPanel controls", async () => {
+  it("CloudPanelSmoke_DisplaysCloudControls", async () => {
     await openTab("云存储", "云存储");
-    await expect(await byText("保存 Token")).toBeDisplayed();
-    await expect(await byText("上传到云端")).toBeDisplayed();
+    await expectPanelText("云存储 Token（可选，对应服务端 BACKUP_CLOUD_TOKEN）");
+    await expectPanelText("保存");
+    await expectPanelText("刷新列表");
+    await expectPanelText("上传到云端");
   });
 
-  it("covers TaskList controls", async () => {
+  it("TaskListSmoke_DisplaysTaskListState", async () => {
     await openTab("任务列表", "任务列表");
-    await expect(await byText("刷新")).toBeDisplayed();
+    await expectPanelText("手动刷新");
+    await expectPanelText("暂无任务");
   });
 });

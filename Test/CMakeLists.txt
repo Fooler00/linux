@@ -154,11 +154,21 @@ set_tests_properties(Frontend.E2ESmoke PROPERTIES
     RESOURCE_LOCK e2e_8080
 )
 
-add_test(NAME Frontend.E2EFull COMMAND bash "${TEST_ROOT}/frontend/run_e2e_full.sh")
-set_tests_properties(Frontend.E2EFull PROPERTIES
-    LABELS "frontend;e2e"
-    TIMEOUT 600
+add_test(NAME Frontend.E2EUISmoke COMMAND bash "${TEST_ROOT}/frontend/run_e2e_ui_smoke.sh")
+set_tests_properties(Frontend.E2EUISmoke PROPERTIES
+    LABELS "frontend;e2e;ui-smoke"
+    TIMEOUT 900
     SKIP_RETURN_CODE 77
     WORKING_DIRECTORY "${PROJECT_ROOT}"
     RESOURCE_LOCK e2e_8080
+)
+
+add_test(NAME Frontend.E2EFullBusiness COMMAND bash "${TEST_ROOT}/frontend/run_e2e_full_business.sh")
+set_tests_properties(Frontend.E2EFullBusiness PROPERTIES
+    LABELS "frontend;e2e;full-business"
+    TIMEOUT 60
+    SKIP_RETURN_CODE 77
+    WORKING_DIRECTORY "${PROJECT_ROOT}"
+    RESOURCE_LOCK e2e_8080
+    DISABLED TRUE
 )

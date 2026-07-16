@@ -17,7 +17,7 @@ Historical results are not reused. Each historical TC is mapped to current `v1-t
 | TC-010 | Realtime watch backup | `API.WatchScheduleCloud` | FAIL; `DEF-001` stable, 10/10 strict reruns backed up a sentinel file created after watch stop response |
 | TC-011 | Scheduled backup and retention | `API.WatchScheduleCloud` | PASS |
 | TC-012 | Historical number gap | Original report has no TC-012 entry | NOT_RUN |
-| TC-013 | User login/logout | `UserAuthTaskUnit.UserManager_RegisterAndAuthenticateWithTempSqlite`, `Frontend.E2ESmoke` | C++ PASS, E2E BLOCKED by missing WebKitWebDriver/Xvfb |
+| TC-013 | User login/logout | `UserAuthTaskUnit.UserManager_RegisterAndAuthenticateWithTempSqlite`, `Frontend.E2ESmoke` | PASS |
 | TC-014 | TAR archive backup and restore | `ArchiveCryptoComponent.TarArchive_RoundTripsDirectory`, `CLI.Flow` | PASS |
 | TC-015 | TAR.GZ archive backup and restore | `ArchiveCryptoComponent.TarGzArchive_RoundTripsDirectory`, `CLI.Flow` | PASS |
 | TC-016 | Metadata preservation | `BackupRestoreIntegration.SourceFile_IsNotModifiedByBackup`, `MetadataManifestIntegration.MetadataJson_RecordsSourceAndOptions` | PASS |
@@ -28,3 +28,18 @@ Historical results are not reused. Each historical TC is mapped to current `v1-t
 | TC-021 | Cloud delete | `CloudStorageComponent.UploadListDownloadAndDelete`, `API.WatchScheduleCloud` | PASS |
 
 TC-012 conclusion: `历史报告编号缺失，原用例不存在，不迁移`.
+
+## Frontend Coverage Classification
+
+| Frontend area | Current automated coverage | Status |
+|---|---|---|
+| AuthPanel | Real E2E registration input, click, and workspace assertion in `Frontend.E2ESmoke` | PASS |
+| BackupPanel | UI navigation/page smoke only; full backup business flow covered by C++/CLI/API tests | UI smoke PASS; full frontend business E2E BLOCKED/NOT_RUN |
+| RestorePanel | UI navigation/page smoke only; full restore business flow covered by C++/CLI/API tests | UI smoke PASS; full frontend business E2E BLOCKED/NOT_RUN |
+| WatchPanel | UI controls smoke; watch behavior covered by `API.WatchScheduleCloud` | UI smoke PASS; API has `DEF-001` FAIL |
+| SchedulePanel | UI controls smoke; schedule behavior covered by `API.WatchScheduleCloud` | UI smoke PASS; API schedule subcases PASS |
+| BackupManagePanel | UI navigation/page smoke only; list/prune behavior covered by integration/CLI/API | UI smoke PASS; full frontend business E2E BLOCKED/NOT_RUN |
+| CloudPanel | UI navigation/page smoke only; cloud behavior covered by component/API tests | UI smoke PASS; full frontend business E2E BLOCKED/NOT_RUN |
+| TaskList | UI navigation/page smoke only; task behavior covered by unit/API tests | UI smoke PASS; full frontend business E2E BLOCKED/NOT_RUN |
+
+The frontend UI smoke checks are not counted as complete business-flow passes. `TEST-INFRA-001` tracks the WebKitWebDriver/Tauri stability limitation that currently blocks full frontend business E2E.

@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test:e2e:tauri": "wdio ../Test/frontend/wdio.conf.ts",
-    "test:e2e:tauri:smoke": "wdio ../Test/frontend/wdio.conf.ts --spec ../Test/frontend/specs/smoke.e2e.ts"
+    "test:e2e:tauri:smoke": "wdio ../Test/frontend/wdio.conf.ts --spec ../Test/frontend/specs/smoke.e2e.ts",
+    "test:e2e:tauri:ui-smoke": "wdio ../Test/frontend/wdio.conf.ts --spec ../Test/frontend/specs/app_flows.e2e.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -38,5 +39,10 @@
     "vue-tsc": "^2.1.10",
     "wait-on": "^9.0.10",
     "webdriverio": "9.29.1"
+  },
+  "overrides": {
+    "@wdio/tauri-service": {
+      "@wdio/native-utils": "2.5.0"
+    }
   }
 }

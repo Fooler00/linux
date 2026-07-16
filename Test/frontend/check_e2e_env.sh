@@ -35,8 +35,19 @@ fi
 
 check_cmd Xvfb
 
-if timeout 1 bash -c ':</dev/tcp/127.0.0.1/8080' >/dev/null 2>&1; then
-  printf 'BLOCKED port 8080 is already in use by an unknown process; Tauri E2E will not kill it.\n'
+port8080_busy() {
+  timeout 1 bash -c ':</dev/tcp/127.0.0.1/8080' >/dev/null 2>&1
+}
+
+if port8080_busy; then
+  deadline=$((SECONDS + 60))
+  while (( SECONDS < deadline )) && port8080_busy; do
+    sleep 0.5
+  done
+fi
+
+if port8080_busy; then
+  printf 'BLOCKED port 8080 is already in use by an unknown process after waiting; Tauri E2E will not kill it.\n'
   missing=1
 else
   printf 'PASS port 8080 is free before Tauri E2E\n'

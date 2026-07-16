@@ -53,8 +53,32 @@ Each CTest entry maps to a concrete test file or script.
 | FLOW-003 | api/watch/schedule/cloud | `API.WatchScheduleCloud` | `api/test_watch_schedule_cloud.sh` | FAIL: strict two-phase watch-stop check shows a post-stop sentinel file is backed up after successful stop response |
 | PERF-001 | performance | `Performance.Basic` | `performance/test_performance.sh` | PASS |
 | SEC-001 | security | `Security.Basic` | `security/test_security.sh` | PASS |
-| E2E-001 | frontend | `Frontend.E2EEnv` | `frontend/check_e2e_env.sh` | BLOCKED: `tauri-driver` present, `WebKitWebDriver/webkit2gtk-driver` and `Xvfb` missing |
-| E2E-002 | frontend | `Frontend.E2ESmoke` | `frontend/run_e2e_smoke.sh` | BLOCKED before WebDriver session |
-| E2E-003 | frontend | `Frontend.E2EFull` | `frontend/run_e2e_full.sh` | BLOCKED before WebDriver session |
+| E2E-001 | frontend | `Frontend.E2EEnv` | `frontend/check_e2e_env.sh` | PASS |
+| E2E-002 | frontend | `Frontend.E2ESmoke` | `frontend/run_e2e_smoke.sh` | PASS |
+| E2E-003 | frontend/ui-smoke | `Frontend.E2EUISmoke` | `frontend/run_e2e_ui_smoke.sh` | PASS: tab navigation and visible page/control smoke only |
+| E2E-004 | frontend/full-business | `Frontend.E2EFullBusiness` | `frontend/run_e2e_full_business.sh` | NOT_RUN/BLOCKED: disabled in default CTest because of `TEST-INFRA-001` |
 
-E2E smoke/full did not reach UI actions because the environment gate failed before Xvfb, tauri-driver session, Tauri app, sidecar, or DOM interaction could start.
+E2E smoke reached WebDriver and executed DOM actions: register tab click, username/password input, register click, and workspace assertions.
+
+`Frontend.E2EUISmoke` reached WebDriver and ran page navigation/UI smoke:
+
+| Flow | Status |
+|---|---|
+| AuthPanel setup for UI smoke | PASS: registered and entered workspace |
+| BackupPanelSmoke_DisplaysBackupForm | PASS |
+| RestorePanelSmoke_DisplaysRestoreForm | PASS |
+| WatchPanelSmoke_DisplaysWatchControls | PASS |
+| SchedulePanelSmoke_DisplaysScheduleControls | PASS |
+| BackupManagePanelSmoke_DisplaysManagementControls | PASS |
+| CloudPanelSmoke_DisplaysCloudControls | PASS |
+| TaskListSmoke_DisplaysTaskListState | PASS |
+
+Full frontend business E2E cases are not counted as passed:
+
+| Flow | Status | Reason |
+|---|---|---|
+| BackupPanel full backup operation | BLOCKED/NOT_RUN | `TEST-INFRA-001` WebKitWebDriver/Tauri command timeout risk. |
+| RestorePanel full restore operation | BLOCKED/NOT_RUN | `TEST-INFRA-001` WebKitWebDriver/Tauri command timeout risk. |
+| BackupManagePanel query/prune operation | BLOCKED/NOT_RUN | `TEST-INFRA-001` WebKitWebDriver/Tauri command timeout risk. |
+| CloudPanel upload/list/download/delete operation | BLOCKED/NOT_RUN | `TEST-INFRA-001` WebKitWebDriver/Tauri command timeout risk. |
+| TaskList status refresh/business verification | BLOCKED/NOT_RUN | `TEST-INFRA-001` WebKitWebDriver/Tauri command timeout risk. |

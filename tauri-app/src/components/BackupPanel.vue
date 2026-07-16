@@ -41,6 +41,11 @@ const form = reactive({
 
 const isMultiSourceMode = computed(() => form.sources.length > 0);
 
+// 仅在勾选「启用归档」时可选，下拉不再提供「不归档」。
+const archiveFormatOptions = computed(() =>
+  ARCHIVE_TYPE_OPTIONS.filter((option) => option.value !== "none")
+);
+
 watch(
   () => form.sources.length,
   (count) => {
@@ -174,7 +179,7 @@ async function submit() {
         <span>归档类型</span>
         <select v-model="form.archiveType" :disabled="!form.compress || submitting">
           <option
-            v-for="option in ARCHIVE_TYPE_OPTIONS"
+            v-for="option in archiveFormatOptions"
             :key="option.value"
             :value="option.value"
           >
@@ -184,7 +189,7 @@ async function submit() {
       </label>
       <label class="field">
         <span>加密算法</span>
-        <select v-model="form.encryptAlgo">
+        <select v-model="form.encryptAlgo" :disabled="!form.encrypt || submitting">
           <option
             v-for="option in ENCRYPT_ALGO_OPTIONS"
             :key="option.value"
@@ -201,7 +206,7 @@ async function submit() {
           <span>启用归档</span>
         </label>
         <label class="checkbox">
-          <input v-model="form.encrypt" type="checkbox" />
+          <input v-model="form.encrypt" type="checkbox" :disabled="submitting" />
           <span>启用加密</span>
         </label>
         <label class="checkbox">

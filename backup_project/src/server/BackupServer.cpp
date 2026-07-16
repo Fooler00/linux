@@ -455,7 +455,7 @@ void BackupServer::registerRoutes()
                 {
                     int taskId = TaskManager::instance().add("realtime-backup", source, destination, user);
                     try {
-                        fs::path path = createBackup(source, destination, true, false, "", filter);
+                        fs::path path = createBackup(source, destination, false, false, "", filter);
                         TaskManager::instance().update(taskId, "success", "实时备份完成：" + path.string());
                         previous = snapshotFiles(source);
                     } catch (const std::exception &e) {
@@ -478,7 +478,7 @@ void BackupServer::registerRoutes()
                     if (current != previous) {
                         int taskId = TaskManager::instance().add("realtime-backup", source, destination, user);
                         try {
-                            fs::path path = createBackup(source, destination, true, false, "", filter);
+                            fs::path path = createBackup(source, destination, false, false, "", filter);
                             TaskManager::instance().update(taskId, "success", "实时备份完成：" + path.string());
                             previous = current;
                         } catch (const std::exception& e) {

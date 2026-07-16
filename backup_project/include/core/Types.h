@@ -102,7 +102,7 @@ struct ScheduleConfig
     fs::path source;
     fs::path destination;
     int intervalSeconds = 3600;
-    int maxBackups = 0;       // 0 表示不限
+    int maxBackups = -1;      // -1 不限，0 全部删除，N>0 保留最新 N 个
     int maxAgeDays = 0;       // 0 表示不限
     bool compress = false;
     bool encrypt = false;

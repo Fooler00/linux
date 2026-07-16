@@ -335,7 +335,7 @@ void BackupServer::registerRoutes()
             cfg.source = body.value("source", "");
             cfg.destination = body.value("destination", "");
             cfg.intervalSeconds = body.value("intervalSeconds", 3600);
-            cfg.maxBackups = body.value("maxBackups", 0);
+            cfg.maxBackups = body.value("maxBackups", -1);
             cfg.maxAgeDays = body.value("maxAgeDays", 0);
             cfg.compress = body.value("compress", false);
             cfg.encrypt = body.value("encrypt", false);
@@ -371,7 +371,7 @@ void BackupServer::registerRoutes()
         try {
             json body = json::parse(req.body);
             std::string destination = body.value("destination", "");
-            int maxBackups = body.value("maxBackups", 0);
+            int maxBackups = body.value("maxBackups", -1);
             int maxAgeDays = body.value("maxAgeDays", 0);
             int removed = pruneBackups(destination, maxBackups, maxAgeDays);
             res.set_content(json{{"removed", removed}, {"message", "已淘汰 " + std::to_string(removed) + " 个旧备份"}}.dump(), "application/json");

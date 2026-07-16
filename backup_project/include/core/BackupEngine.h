@@ -22,6 +22,7 @@ void writeMetadata(
     int copiedFiles,
     const std::string &archiveType = "",
     const std::string &encryptAlgo = "",
+    bool encrypt = false,
     bool incremental = false,
     const std::vector<fs::path> &sources = {});
 

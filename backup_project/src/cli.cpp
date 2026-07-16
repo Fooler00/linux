@@ -28,7 +28,8 @@ static void usage()
               << "  backup_cli backup  <源目录> <备份目录> [--encrypt 密码] [--algo zip|tar|tar.gz|none]\n"
               << "  backup_cli restore <备份路径> <还原目录> [--password 密码] [--encrypt-algo aes-256-cbc]\n"
               << "  backup_cli list    <备份目录>\n"
-              << "  backup_cli prune   <备份目录> --max-backups N --max-age-days D\n";
+              << "  backup_cli prune   <备份目录> --max-backups N --max-age-days D\n"
+              << "    max-backups: -1=不限, 0=全部删除, N>0=保留最新 N 个；max-age-days: 0=不限\n";
 }
 
 int main(int argc, char **argv)
@@ -137,7 +138,7 @@ int main(int argc, char **argv)
     else if (cmd == "prune")
     {
         fs::path destination = argv[2];
-        int maxBackups = 0;
+        int maxBackups = -1; // 未指定时不按数量淘汰
         int maxAgeDays = 0;
         for (int i = 3; i < argc; ++i)
         {

@@ -82,13 +82,23 @@ async function prune() {
     return;
   }
 
+  const maxBackups = Number(pruneForm.maxBackups);
+  const maxAgeDays = Number(pruneForm.maxAgeDays);
+  const resolvedMaxBackups = Number.isFinite(maxBackups) ? maxBackups : -1;
+  const resolvedMaxAgeDays = Number.isFinite(maxAgeDays) && maxAgeDays > 0 ? maxAgeDays : 0;
+
+  if (resolvedMaxBackups < 0 && resolvedMaxAgeDays === 0) {
+    showMessage("未设置任何淘汰条件（数量填 -1 且天数填 0 表示不淘汰）", "error");
+    return;
+  }
+
   pruning.value = true;
 
   try {
     const result = await pruneBackups(
       destination.value.trim(),
-      Number(pruneForm.maxBackups) || 0,
-      Number(pruneForm.maxAgeDays) || 0
+      resolvedMaxBackups,
+      resolvedMaxAgeDays
     );
     showMessage(result.message, "success");
     await queryBackups();
@@ -101,6 +111,13 @@ async function prune() {
 
 function getMetadataText(value: string | number | null | undefined) {
   return value === "" || value === null || value === undefined ? "-" : String(value);
+}
+
+function getEncryptAlgoText(value: string | null | undefined) {
+  if (value === "" || value === null || value === undefined || value === "none") {
+    return "无";
+  }
+  return value;
 }
 
 function getMetadataBytes(value: number | null | undefined) {
@@ -128,8 +145,8 @@ function getMetadataBoolean(value: boolean | null | undefined) {
         :disabled="querying || pruning"
       />
       <label class="field">
-        <span>最多保留数量（0=不限）</span>
-        <input v-model.number="pruneForm.maxBackups" type="number" min="0" :disabled="pruning" />
+        <span>最多保留数量（-1=不限，0=全部删除）</span>
+        <input v-model.number="pruneForm.maxBackups" type="number" min="-1" :disabled="pruning" />
       </label>
       <label class="field">
         <span>最多保留天数（0=不限）</span>
@@ -198,7 +215,7 @@ function getMetadataBoolean(value: boolean | null | undefined) {
         </div>
         <div><dt>备份时间</dt><dd>{{ getMetadataText(metadata.backupTime) }}</dd></div>
         <div><dt>归档类型</dt><dd>{{ getMetadataText(metadata.archiveType) }}</dd></div>
-        <div><dt>加密算法</dt><dd>{{ getMetadataText(metadata.encryptAlgo) }}</dd></div>
+        <div><dt>加密算法</dt><dd>{{ getEncryptAlgoText(metadata.encryptAlgo) }}</dd></div>
         <div><dt>文件数</dt><dd>{{ getMetadataText(metadata.copiedFiles) }}</dd></div>
         <div><dt>大小</dt><dd>{{ getMetadataBytes(metadata.size) }}</dd></div>
         <div><dt>增量备份</dt><dd>{{ getMetadataBoolean(metadata.incremental) }}</dd></div>

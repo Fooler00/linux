@@ -1,15 +1,85 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command as StdCommand;
+use std::sync::Mutex;
+use std::thread;
 use std::time::Duration;
 
 use reqwest::Method;
 use reqwest::multipart;
-use tauri::{Emitter, Manager};
-use tauri_plugin_shell::process::CommandEvent;
+use tauri::{Emitter, Manager, RunEvent};
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
 const API_BASE: &str = "http://127.0.0.1:8080";
+const BACKUP_PORT: &str = "8080";
+const BACKUP_LOCK_PATH: &str = "/tmp/backup_server_8080.lock";
+
+struct BackupServerState {
+    child: Mutex<Option<CommandChild>>,
+}
+
+fn kill_managed_sidecar(app: &tauri::AppHandle) {
+    if let Some(state) = app.try_state::<BackupServerState>() {
+        if let Ok(mut guard) = state.child.lock() {
+            if let Some(child) = guard.take() {
+                let pid = child.pid();
+                if let Err(err) = child.kill() {
+                    eprintln!("[backup_server] kill failed (pid={pid}): {err}");
+                } else {
+                    eprintln!("[backup_server] killed on app exit (pid={pid})");
+                }
+            }
+        }
+    }
+}
+
+/// 清理上次异常退出残留的 backup_server（与 C++ 单实例锁文件约定一致）。
+fn cleanup_stale_backup_server() {
+    let Ok(contents) = fs::read_to_string(BACKUP_LOCK_PATH) else {
+        return;
+    };
+    let Some(pid_str) = contents
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    else {
+        return;
+    };
+    let Ok(pid) = pid_str.parse::<u32>() else {
+        return;
+    };
+
+    if !is_backup_server_pid(pid) {
+        return;
+    }
+
+    eprintln!("[backup_server] cleaning stale process pid={pid}");
+    let _ = StdCommand::new("kill")
+        .args(["-TERM", &pid.to_string()])
+        .status();
+    thread::sleep(Duration::from_millis(300));
+    if PathBuf::from(format!("/proc/{pid}")).exists() {
+        let _ = StdCommand::new("kill")
+            .args(["-KILL", &pid.to_string()])
+            .status();
+        thread::sleep(Duration::from_millis(200));
+    }
+}
+
+fn is_backup_server_pid(pid: u32) -> bool {
+    if let Ok(cmdline) = fs::read(format!("/proc/{pid}/cmdline")) {
+        if String::from_utf8_lossy(&cmdline).contains("backup_server") {
+            return true;
+        }
+    }
+    if let Ok(comm) = fs::read_to_string(format!("/proc/{pid}/comm")) {
+        return comm.trim() == "backup_server";
+    }
+    false
+}
 
 async fn wait_for_server() -> Result<(), String> {
     let client = reqwest::Client::new();
@@ -32,6 +102,8 @@ async fn wait_for_server() -> Result<(), String> {
 }
 
 fn spawn_backup_server(app: &tauri::AppHandle) -> Result<(), String> {
+    cleanup_stale_backup_server();
+
     let runtime_dir = resolve_runtime_dir(app)?;
     let cloud_dir = runtime_dir.join("cloud_storage");
     let db_path = runtime_dir.join("users.db");
@@ -42,16 +114,20 @@ fn spawn_backup_server(app: &tauri::AppHandle) -> Result<(), String> {
         .map(|command| {
             command
                 .current_dir(&runtime_dir)
-                .env("BACKUP_PORT", "8080")
+                .env("BACKUP_PORT", BACKUP_PORT)
                 .env("BACKUP_DB", db_path.as_os_str())
                 .env("BACKUP_CLOUD_DIR", cloud_dir.as_os_str())
                 .env("BACKUP_CLOUD_TYPE", "local")
         })
         .map_err(|e| format!("无法加载 sidecar: {e}"))?;
 
-    let (mut rx, _child) = sidecar
+    let (mut rx, child) = sidecar
         .spawn()
         .map_err(|e| format!("无法启动备份服务: {e}"))?;
+
+    app.manage(BackupServerState {
+        child: Mutex::new(Some(child)),
+    });
 
     let app_handle = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -68,6 +144,12 @@ fn spawn_backup_server(app: &tauri::AppHandle) -> Result<(), String> {
                     "[backup_server] terminated: code={:?}",
                     payload.code
                 );
+                // 进程已退出时清空句柄，避免退出时对已死进程再 kill。
+                if let Some(state) = app_handle.try_state::<BackupServerState>() {
+                    if let Ok(mut guard) = state.child.lock() {
+                        guard.take();
+                    }
+                }
                 let _ = app_handle.emit("backup-server-stopped", ());
             }
         }
@@ -250,6 +332,12 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![api_request, cloud_upload, cloud_download])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| match event {
+            RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+                kill_managed_sidecar(&app_handle);
+            }
+            _ => {}
+        });
 }
